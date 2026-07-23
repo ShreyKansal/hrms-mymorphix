@@ -29,7 +29,9 @@ gh auth login   # one-time device-code flow: visit the printed URL, enter the co
 gh auth setup-git
 ```
 
-A single env file, `~/hrms-env.sh`, exports everything every command below needs (Node via nvm, Postgres/Valkey binaries via micromamba, `DATABASE_URL`, `REDIS_URL`). **Source it at the start of every terminal session:**
+A single env file, `~/hrms-env.sh`, exports everything every command below needs (Node via nvm, Postgres/Valkey binaries via micromamba, `MIGRATE_DATABASE_URL`, `REDIS_URL`). **Source it at the start of every terminal session:**
+
+**Important:** this file deliberately does **not** export a bare `DATABASE_URL` — only `MIGRATE_DATABASE_URL` (superuser, for `npm run db:migrate`/`db:studio` only). `apps/api/.env` is the sole source of `DATABASE_URL` for the running app. This used to be a bare `DATABASE_URL` export and silently broke Row-Level Security for part of this project's history by shadowing the app's own `.env` — see [`docs/build/verification-evidence/README.md`](docs/build/verification-evidence/README.md) Bug 3 before ever reintroducing a shell-level `DATABASE_URL` export.
 
 ```bash
 source ~/hrms-env.sh
@@ -78,9 +80,10 @@ Should print 8 `PASS` lines and `All checks passed.` If you haven't already: `np
 
 ## Database
 
-- **Connection (app):** `postgresql://hrms_app:hrms_dev_local_only@localhost:5432/hrms_dev?host=/tmp` — a **non-superuser** role, deliberately, so Row-Level Security policies actually apply (superusers bypass RLS by default in Postgres — see `prisma/migrations/20260723180000_row_level_security/migration.sql`'s own comment on this).
-- **Connection (migrations/admin):** the `postgres` superuser, same host/port/database.
-- **Schema changes:** edit `prisma/schema.prisma`, then `npm run db:migrate` from the repo root (uses the superuser connection).
+- **Connection (app):** `postgresql://hrms_app:hrms_dev_local_only@localhost:5432/hrms_dev?host=/tmp` — a **non-superuser** role, deliberately, so Row-Level Security policies actually apply (superusers bypass RLS by default in Postgres — see `prisma/migrations/20260723180000_row_level_security/migration.sql`'s own comment on this). Lives in `apps/api/.env` only — **never** re-add it as a shell-level export (see the warning above).
+- **Connection (migrations/admin):** the `postgres` superuser, same host/port/database — `$MIGRATE_DATABASE_URL` from `~/hrms-env.sh`.
+- **Schema changes:** edit `prisma/schema.prisma`, then `npm run db:migrate` from the repo root (uses `$MIGRATE_DATABASE_URL`, the superuser connection, passed explicitly by the script — see `package.json`).
+- **Sanity-check which role the running API is actually using** (worth doing after any env change): `psql -h /tmp -p 5432 -U postgres -d hrms_dev -c "SELECT usename, count(*) FROM pg_stat_activity WHERE datname='hrms_dev' GROUP BY usename;"` — should show `hrms_app`, never only `postgres`.
 - **Inspect data:** `npm run db:studio`, or `psql -h /tmp -p 5432 -U postgres -d hrms_dev`.
 
 ## Project structure
@@ -102,3 +105,4 @@ docs/build/    — module-by-module build guides, backlogs, and this execution's
 - **Every optional DTO field needs `@EmptyStringToUndefined()`** (`apps/api/src/common/empty-string-to-undefined.ts`) before `@IsOptional()` — Atlaskit forms submit untouched optional fields as `""`, not `undefined`. This is now a required pattern for every future module's DTOs, not a one-off fix.
 - **`x-tenant-id` header / localStorage tenant ID is a temporary auth stand-in** (`apps/api/src/common/tenant-id.decorator.ts`, `apps/web/src/api/client.ts`) — replaced once Module 21 (Roles and Permissions) ships real authentication. Every controller using `@TenantId()` today has zero real permission enforcement yet.
 - **`@atlaskit/page-layout` was dropped** from the frontend dependencies — its currently published version has a React-16-only peer dependency that wouldn't resolve. Plain layout (divs + Atlaskit primitives) used instead. Revisit if a compatible version ships.
+- **`.vscode/settings.json` pins the TypeScript version VSCode uses for editor diagnostics** to `apps/web/node_modules/typescript` — without this, VSCode's own bundled TypeScript (which can be older than what this project needs) may flag `"erasableSyntaxOnly"` in `tsconfig.json` as an unknown option, even though real builds (`npx tsc -b`) are unaffected and compile clean. If VSCode still shows this, run **TypeScript: Select TypeScript Version → Use Workspace Version** from the command palette once.

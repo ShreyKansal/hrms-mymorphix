@@ -33,6 +33,7 @@ blob-report/
 .DS_Store
 .vscode/*
 !.vscode/extensions.json
+!.vscode/settings.json
 *.swp
 
 # Logs
