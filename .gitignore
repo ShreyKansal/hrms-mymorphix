@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+.npm
+
+# Build outputs (scoped to apps/*/, NOT bare "build/" — docs/build/ is real content, not
+# a build artifact, and a bare pattern here would silently swallow the whole thing)
+dist/
+apps/*/build/
+.next/
+*.tsbuildinfo
+
+# Turborepo
+.turbo/
+
+# Environment files — never commit real credentials, even local-dev-only ones.
+# Each app should ship a .env.example instead (see apps/api/.env.example).
+.env
+.env.local
+.env.*.local
+apps/*/.env
+
+# Prisma
+# (schema + migrations ARE committed — this is only the generated client output)
+generated/
+
+# Testing / Playwright
+apps/web/e2e/output/
+test-results/
+playwright-report/
+blob-report/
+
+# Editor/OS
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+*.swp
+
+# Logs
+*.log
+npm-debug.log*
+
+# Local data (this repo's own dev database files, screenshots, etc. — never belongs in git)
+hrms-local-data/
