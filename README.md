@@ -21,6 +21,12 @@ nvm install --lts
 # PostgreSQL + Redis-compatible (Valkey) via micromamba (no sudo)
 curl -Ls https://micro.mamba.pm/api/micromamba/osx-arm64/latest | tar -xvj bin/micromamba
 ~/bin/micromamba create -y -n hrms-dev -c conda-forge postgresql valkey-server
+
+# GitHub CLI, standalone binary (no sudo) — used for auth + git push, since there was no
+# Homebrew to install it the normal way either
+# (binary sits in ~/bin/gh, already on PATH via ~/hrms-env.sh)
+gh auth login   # one-time device-code flow: visit the printed URL, enter the code
+gh auth setup-git
 ```
 
 A single env file, `~/hrms-env.sh`, exports everything every command below needs (Node via nvm, Postgres/Valkey binaries via micromamba, `DATABASE_URL`, `REDIS_URL`). **Source it at the start of every terminal session:**
