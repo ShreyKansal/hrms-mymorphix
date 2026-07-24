@@ -3,10 +3,8 @@ import Heading from '@atlaskit/heading';
 import Button from '@atlaskit/button/new';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../auth/store';
+import { rowStyle, cellStyle } from '../../lib/detailStyles';
 import type { Document } from '../../lib/database.types';
-
-const rowStyle = { borderBottom: '1px solid #DCDFE4' };
-const cellStyle = { padding: 8 };
 
 const CATEGORIES: Document['category'][] = ['resume', 'certificate', 'id_proof', 'offer_letter', 'other'];
 

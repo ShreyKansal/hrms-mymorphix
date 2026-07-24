@@ -5,10 +5,8 @@ import Lozenge from '@atlaskit/lozenge';
 import Button from '@atlaskit/button/new';
 import type { EmploymentAssignment } from '../../lib/database.types';
 import { useAuthStore } from '../auth/store';
+import { labelStyle, valueStyle } from '../../lib/detailStyles';
 import TransferEmployeeModal from './TransferEmployeeModal';
-
-const labelStyle = { color: '#626F86', fontSize: 12, fontWeight: 600, marginTop: 12 };
-const valueStyle = { margin: '2px 0 0' };
 
 export default function EmploymentTab({
   employeeId,

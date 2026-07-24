@@ -5,12 +5,8 @@ import Form, { Field, FormSection, ErrorMessage, MessageWrapper } from '@atlaski
 import TextField from '@atlaskit/textfield';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../auth/store';
+import { labelStyle, valueStyle, rowStyle, cellStyle } from '../../lib/detailStyles';
 import type { Employee, EmployeeEducation, EmployeePreviousEmployment } from '../../lib/database.types';
-
-const labelStyle = { color: '#626F86', fontSize: 12, fontWeight: 600, marginTop: 12 };
-const valueStyle = { margin: '2px 0 0' };
-const rowStyle = { borderBottom: '1px solid #DCDFE4' };
-const cellStyle = { padding: 8 };
 
 interface ProfileFormData {
   legalName: string;

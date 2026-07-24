@@ -7,9 +7,7 @@ import TextField from '@atlaskit/textfield';
 import { SelectField } from '../../lib/SelectField';
 import { useAuthStore } from '../auth/store';
 import { useTeamStore } from './store';
-
-const rowStyle = { borderBottom: '1px solid #DCDFE4' };
-const cellStyle = { padding: 8 };
+import { rowStyle, cellStyle } from '../../lib/detailStyles';
 
 interface InviteFormData {
   email: string;

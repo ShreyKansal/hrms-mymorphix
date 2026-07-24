@@ -6,9 +6,7 @@ import Form, { Field, ErrorMessage, MessageWrapper } from '@atlaskit/form';
 import TextField from '@atlaskit/textfield';
 import { useAuthStore } from '../auth/store';
 import { useOrgManagementStore } from './store';
-
-const rowStyle = { borderBottom: '1px solid #DCDFE4' };
-const cellStyle = { padding: 8 };
+import { rowStyle, cellStyle } from '../../lib/detailStyles';
 
 // Module 2 PRD's "Departments, Locations, Grades/Bands/Designations CRUD" story, scoped down
 // to what's needed to unblock Module 1's Transfer flow: a flat list + create, no edit/delete,

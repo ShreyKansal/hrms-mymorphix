@@ -57,7 +57,7 @@ export default function EmployeeDetail() {
   return (
     <div style={{ maxWidth: 864, margin: '0 auto', padding: 24 }}>
       <div style={{ marginBottom: 24 }}>
-        <Heading size="xlarge">{employee.legal_name}</Heading>
+        <Heading size="large">{employee.legal_name}</Heading>
         <p>
           {employee.employee_code} · <Lozenge appearance="success">{employee.status}</Lozenge>
         </p>

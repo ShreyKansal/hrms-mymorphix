@@ -90,15 +90,45 @@ forward now that the breadcrumb exists.
 + static label map does the same job at this route-tree size. Reconsider only if the route tree
 grows enough to need real nested-route data loading (loaders/actions), not for breadcrumbs alone.
 
-## 4. Forms
+## 4. Typography hierarchy
+
+`@atlaskit/heading`'s `size` prop, used consistently — this drifted once already
+(`EmployeeDetail.tsx`'s record-name heading was `xlarge` while every other page title was
+`large`; fixed, but the fix is only worth something if the next page doesn't reintroduce it):
+
+| Level | Size | Where |
+|---|---|---|
+| Page title | `large` | Every page's H1-equivalent — Employee Directory, Employee Detail (the record name), Organisation, Org Chart, Team, Auth, Tenant Setup. **Never `xlarge`** — that was the one drift found so far. |
+| Section header | `small` | A named section within a page — "Personal", "Education", "Current assignment", "Members", "Pending invitations". Every section header in the app already uses this; keep it that way. |
+| Field label / row label | 12px, `#626F86`, weight 600 | Not a `Heading` at all — small inline labels like "Legal name" or "Department" above a value. See `src/lib/detailStyles.ts`'s `labelStyle`. |
+
+There is no `medium` or in-between size in use anywhere — don't introduce one without adding it
+to this table first.
+
+## 5. Shared style constants
+
+`src/lib/detailStyles.ts` (`labelStyle`, `valueStyle`, `rowStyle`, `cellStyle`) — the styling for
+the field-label/value pairs and small embedded tables described in §1 and §4. This used to be
+copy-pasted identically into five separate files (`ProfileTab`, `EmploymentTab`, `DocumentsTab`,
+`OrgManagement`, `Team`); not yet drifted when consolidated, but five copies of the same object
+is exactly how drift starts. **Import from here, don't redeclare** — if a screen needs a
+genuinely different look for these, that's a signal to extend `detailStyles.ts` with a named
+variant, not to fork a local copy.
+
+## 6. Forms
 
 Always `@atlaskit/form` (`Field`/`FormSection`/`ErrorMessage`/`MessageWrapper`) — required-field
 asterisks and inline validation come from the library, never hand-rolled. For any `<select>`,
 always use the shared `src/lib/SelectField.tsx` wrapper, never spread `fieldProps` directly onto
 a native `<select>` — see that file's comment for the two real bugs (DOM-attribute leakage,
-wrong `onChange` type) doing so caused.
+wrong `onChange` type) doing so caused, and for why it's now visually styled to match
+`TextField` rather than rendering as a bare native control ("dropdowns are small" was a real,
+reported inconsistency — `SelectField` now measures 40px tall, 3px corner radius, 1px border in
+`color.border.input` at rest / `color.border.focused` on focus, all read from `@atlaskit/tokens`
+rather than hardcoded so it stays theme-correct — pixel-matched against a live `TextField`
+render, not eyeballed).
 
-## 5. Status and category labels
+## 7. Status and category labels
 
 `@atlaskit/lozenge` for any short status/role/category tag. Current appearance convention:
 
@@ -112,7 +142,7 @@ Only two states have been needed so far (`EmployeeDirectory.tsx`'s status Lozeng
 module needs more — e.g. a `warning`/`removed` appearance for `suspended`/`separated` employee
 statuses — rather than picking an appearance ad hoc per screen.
 
-## 6. Page container width
+## 8. Page container width
 
 - **864px** (`maxWidth: 864`) for form-and-detail pages — Employee Detail, Organisation, Team,
   Tenant Setup. These are read-and-edit pages, not dense data views; a narrower column is more
@@ -122,7 +152,7 @@ statuses — rather than picking an appearance ad hoc per screen.
 
 Both use `margin: '0 auto'` to center within the (already-narrower) `AppShell` main content area.
 
-## 7. Module folder structure
+## 9. Module folder structure
 
 Covered in memory, not repeated here in full: one folder per HRMS module under
 `src/modules/<module-slug>/`, only as many files as the module genuinely needs, cross-module
