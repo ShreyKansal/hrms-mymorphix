@@ -2,53 +2,155 @@ import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import Heading from '@atlaskit/heading';
 import Lozenge from '@atlaskit/lozenge';
+import Button from '@atlaskit/button/new';
+import Tabs, { Tab, TabList, TabPanel } from '@atlaskit/tabs';
+import Form, { Field, FormSection, ErrorMessage, MessageWrapper } from '@atlaskit/form';
+import TextField from '@atlaskit/textfield';
 import { supabase } from '../lib/supabase';
 import type { Employee, EmploymentAssignment } from '../lib/database.types';
 
-// Simplified version of docs/build/build-guides/01-core-hr-employee-information.md screen #2.
-// Full tabs (Profile/Compensation/Documents/Assets) land as those modules get built — this
-// proves the Employment History timeline, the part that actually matters for validating the
-// effective-dating pattern end-to-end. A direct supabase.from() query here (not the Zustand
-// store) is deliberate: this is a one-off detail fetch, not shared list state.
-export default function EmployeeDetail() {
-  const { id } = useParams<{ id: string }>();
-  const [employee, setEmployee] = useState<Employee | null>(null);
-  const [assignments, setAssignments] = useState<EmploymentAssignment[]>([]);
-  const [loading, setLoading] = useState(true);
+const labelStyle = { color: '#626F86', fontSize: 12, fontWeight: 600, marginTop: 12 };
+const valueStyle = { margin: '2px 0 0' };
 
-  useEffect(() => {
-    if (!id) return;
-    (async () => {
-      setLoading(true);
-      const [{ data: emp }, { data: history }] = await Promise.all([
-        supabase.from('employees').select('*').eq('id', id).single(),
-        supabase
-          .from('employment_assignments')
-          .select('*, departments(*), designations(*)')
-          .eq('employee_id', id)
-          .order('effective_from', { ascending: false }),
-      ]);
-      setEmployee(emp);
-      setAssignments(history ?? []);
-      setLoading(false);
-    })();
-  }, [id]);
+interface ProfileFormData {
+  legalName: string;
+  dateOfBirth: string;
+  gender: string;
+  panNumber: string;
+  personalEmail: string;
+  personalPhone: string;
+}
 
-  if (loading) return <p style={{ padding: 24 }}>Loading…</p>;
-  if (!employee) return <p style={{ padding: 24 }}>Not found.</p>;
+// Module 01 PRD §15: Profile tab covers personal/contact/emergency/dependants/nominees.
+// Emergency contacts, dependants, and nominees need their own tables — none exist in the
+// Foundation-phase schema yet, so this deliberately covers only personal + contact, the
+// two groups the current `employees` table actually has fields for. Adding empty
+// placeholder sections for the rest would be a half-finished UI backed by nothing.
+function ProfileTab({ employee, onSaved }: { employee: Employee; onSaved: (updated: Employee) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (!editing) {
+    return (
+      <div style={{ maxWidth: 480 }}>
+        <Heading size="small">Personal</Heading>
+        <p style={labelStyle}>Legal name</p>
+        <p style={valueStyle}>{employee.legal_name}</p>
+        <p style={labelStyle}>Date of birth</p>
+        <p style={valueStyle}>
+          {employee.date_of_birth ? new Date(employee.date_of_birth).toLocaleDateString() : '—'}
+        </p>
+        <p style={labelStyle}>Gender</p>
+        <p style={valueStyle}>{employee.gender ?? '—'}</p>
+        <p style={labelStyle}>PAN</p>
+        <p style={valueStyle}>{employee.pan_number ?? '—'}</p>
+
+        <Heading size="small">Contact</Heading>
+        <p style={labelStyle}>Personal email</p>
+        <p style={valueStyle}>{employee.personal_email ?? '—'}</p>
+        <p style={labelStyle}>Personal phone</p>
+        <p style={valueStyle}>{employee.personal_phone ?? '—'}</p>
+
+        <div style={{ marginTop: 20 }}>
+          <Button onClick={() => setEditing(true)}>Edit</Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div style={{ maxWidth: 864, margin: '0 auto', padding: 24 }}>
-      <Link to="/employees">&larr; Back to directory</Link>
-      <div style={{ marginTop: 16, marginBottom: 24 }}>
-        <Heading size="xlarge">{employee.legal_name}</Heading>
-        <p>
-          {employee.employee_code} · <Lozenge appearance="success">{employee.status}</Lozenge>
-        </p>
-      </div>
+    <Form<ProfileFormData>
+      onSubmit={async (data) => {
+        setError(null);
+        const { data: updated, error: updateError } = await supabase
+          .from('employees')
+          .update({
+            legal_name: data.legalName,
+            date_of_birth: data.dateOfBirth || null,
+            gender: data.gender || null,
+            pan_number: data.panNumber || null,
+            personal_email: data.personalEmail || null,
+            personal_phone: data.personalPhone || null,
+          })
+          .eq('id', employee.id)
+          .select()
+          .single();
+        if (updateError) {
+          setError(updateError.message);
+          return;
+        }
+        onSaved(updated);
+        setEditing(false);
+      }}
+    >
+      {({ formProps }) => (
+        <form {...formProps} style={{ maxWidth: 480 }}>
+          {error && (
+            <MessageWrapper>
+              <ErrorMessage>{error}</ErrorMessage>
+            </MessageWrapper>
+          )}
+          <FormSection title="Personal">
+            <Field name="legalName" label="Legal name" isRequired defaultValue={employee.legal_name}>
+              {({ fieldProps }) => <TextField {...fieldProps} />}
+            </Field>
+            <Field name="dateOfBirth" label="Date of birth" defaultValue={employee.date_of_birth ?? ''}>
+              {({ fieldProps }) => <TextField {...fieldProps} type="date" />}
+            </Field>
+            <Field name="gender" label="Gender" defaultValue={employee.gender ?? ''}>
+              {({ fieldProps }) => <TextField {...fieldProps} />}
+            </Field>
+            <Field name="panNumber" label="PAN" defaultValue={employee.pan_number ?? ''}>
+              {({ fieldProps }) => <TextField {...fieldProps} />}
+            </Field>
+          </FormSection>
+          <FormSection title="Contact">
+            <Field name="personalEmail" label="Personal email" defaultValue={employee.personal_email ?? ''}>
+              {({ fieldProps }) => <TextField {...fieldProps} type="email" />}
+            </Field>
+            <Field name="personalPhone" label="Personal phone" defaultValue={employee.personal_phone ?? ''}>
+              {({ fieldProps }) => <TextField {...fieldProps} />}
+            </Field>
+          </FormSection>
+          <div style={{ marginTop: 20, display: 'flex', gap: 8 }}>
+            <Button type="submit" appearance="primary">
+              Save
+            </Button>
+            <Button appearance="subtle" onClick={() => setEditing(false)}>
+              Cancel
+            </Button>
+          </div>
+        </form>
+      )}
+    </Form>
+  );
+}
 
-      <Heading size="medium">Employment history</Heading>
-      <p style={{ color: '#626F86', marginBottom: 16 }}>
+function EmploymentTab({ assignments }: { assignments: EmploymentAssignment[] }) {
+  const current = assignments.find((a) => a.effective_to === null);
+
+  return (
+    <div>
+      <Heading size="small">Current assignment</Heading>
+      {current ? (
+        <div style={{ marginBottom: 24 }}>
+          <p style={labelStyle}>Department</p>
+          <p style={valueStyle}>{current.departments?.name ?? '—'}</p>
+          <p style={labelStyle}>Designation</p>
+          <p style={valueStyle}>{current.designations?.title ?? '—'}</p>
+          <p style={labelStyle}>Grade</p>
+          <p style={valueStyle}>{current.grades?.name ?? '—'}</p>
+          <p style={labelStyle}>Employment type</p>
+          <p style={valueStyle}>{current.employment_type}</p>
+          <p style={labelStyle}>Since</p>
+          <p style={valueStyle}>{new Date(current.effective_from).toLocaleDateString()}</p>
+        </div>
+      ) : (
+        <p style={{ color: '#626F86' }}>No current assignment.</p>
+      )}
+
+      <Heading size="small">History</Heading>
+      <p style={{ color: '#626F86', margin: '4px 0 16px' }}>
         Every row below is a separate, permanent record — nothing here was ever overwritten. The
         row with no end date is the current one.
       </p>
@@ -76,6 +178,66 @@ export default function EmployeeDetail() {
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+export default function EmployeeDetail() {
+  const { id } = useParams<{ id: string }>();
+  const [employee, setEmployee] = useState<Employee | null>(null);
+  const [assignments, setAssignments] = useState<EmploymentAssignment[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!id) return;
+    (async () => {
+      setLoading(true);
+      const [{ data: emp }, { data: history }] = await Promise.all([
+        // .maybeSingle(), not .single(): a bad/stale URL (deleted employee, wrong tenant)
+        // legitimately resolves to zero rows — the "Not found" branch below already handles
+        // that. .single() would log a 406 console error for what's a normal UI state.
+        supabase.from('employees').select('*').eq('id', id).maybeSingle(),
+        supabase
+          .from('employment_assignments')
+          .select('*, departments(*), designations(*), grades(*)')
+          .eq('employee_id', id)
+          .order('effective_from', { ascending: false }),
+      ]);
+      setEmployee(emp);
+      setAssignments(history ?? []);
+      setLoading(false);
+    })();
+  }, [id]);
+
+  if (loading) return <p style={{ padding: 24 }}>Loading…</p>;
+  if (!employee) return <p style={{ padding: 24 }}>Not found.</p>;
+
+  return (
+    <div style={{ maxWidth: 864, margin: '0 auto', padding: 24 }}>
+      <Link to="/employees">&larr; Back to directory</Link>
+      <div style={{ marginTop: 16, marginBottom: 24 }}>
+        <Heading size="xlarge">{employee.legal_name}</Heading>
+        <p>
+          {employee.employee_code} · <Lozenge appearance="success">{employee.status}</Lozenge>
+        </p>
+      </div>
+
+      <Tabs id="employee-detail-tabs">
+        <TabList>
+          <Tab>Profile</Tab>
+          <Tab>Employment</Tab>
+        </TabList>
+        <TabPanel>
+          <div style={{ paddingTop: 16 }}>
+            <ProfileTab employee={employee} onSaved={setEmployee} />
+          </div>
+        </TabPanel>
+        <TabPanel>
+          <div style={{ paddingTop: 16 }}>
+            <EmploymentTab assignments={assignments} />
+          </div>
+        </TabPanel>
+      </Tabs>
     </div>
   );
 }

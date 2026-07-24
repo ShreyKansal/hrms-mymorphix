@@ -41,7 +41,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   refreshProfile: async () => {
-    const { data: profile } = await supabase.from('profiles').select('tenant_id').single();
+    // .maybeSingle(), not .single(): a brand-new user has no profiles row at all until they
+    // provision a tenant (the row is only created inside provision_tenant()), so zero rows
+    // here is an expected, normal state, not an error. .single() treats zero rows as a 406
+    // and logs a scary console error on every page load for every pre-tenant user — confirmed
+    // by an actual browser check against a live project.
+    const { data: profile } = await supabase.from('profiles').select('tenant_id').maybeSingle();
     if (!profile?.tenant_id) {
       set({ tenantId: null, legalEntityId: null });
       return;
@@ -53,7 +58,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       .select('id')
       .eq('tenant_id', profile.tenant_id)
       .limit(1)
-      .single();
+      .maybeSingle();
     set({ tenantId: profile.tenant_id, legalEntityId: legalEntity?.id ?? null });
   },
 
