@@ -1,41 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { token } from '@atlaskit/tokens';
+import { Dialog } from 'radix-ui';
+import { Search } from 'lucide-react';
 import { useEmployeesStore } from '../modules/core-hr/store';
+import { cn } from './ui/cn';
 
-// First rebuild wasn't the right pattern at all — a dropdown pinned under a small sidebar
-// input isn't what "search bar" means in every reference product actually shown (ClickUp,
-// Attio, Linear): that's a *trigger* for a centered, modal command palette with its own
-// backdrop, not a live-filtering text box in place. Researched before rebuilding this time
-// (uxpatterns.dev's command-palette pattern, Linear/Vercel-style Cmd+K writeups): backdrop +
-// centered floating panel, full keyboard operability (arrow keys + Enter, not just typing),
-// grouped results with a label, and a visible idle/empty state — not just the happy path.
-function SearchIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" role="presentation" style={{ flexShrink: 0 }}>
-      <g fill="currentcolor" fillRule="evenodd">
-        <path
-          fillRule="evenodd"
-          d="M10.5 3a7.5 7.5 0 1 0 4.55 13.46l4.245 4.244a1 1 0 0 0 1.414-1.414l-4.243-4.244A7.5 7.5 0 0 0 10.5 3M5 10.5a5.5 5.5 0 1 1 11 0 5.5 5.5 0 0 1-11 0"
-        />
-      </g>
-    </svg>
-  );
-}
+// Migrated to Radix's Dialog primitive (Supabase design system's own modality pattern —
+// docs/design-system/supabase-source/apps/design-system/content/docs/ui-patterns/modality.mdx
+// — a centered overlay with its own backdrop) instead of a hand-rolled fixed-position div.
+// Gets real accessibility semantics (focus trap, aria-modal, Escape handling) for free instead
+// of reimplementing them; the keyboard *navigation within results* (arrow keys, Enter-to-select)
+// is still custom since that's specific to this palette, not something Dialog provides.
+const kbdClass = 'rounded border border-border bg-sunken px-1.5 py-0.5 text-xs text-text-subtlest';
 
-const kbdStyle = {
-  fontSize: 11,
-  color: token('color.text.subtlest', '#8590A2'),
-  border: `1px solid ${token('color.border', '#DCDFE4')}`,
-  borderRadius: 3,
-  padding: '1px 5px',
-  fontFamily: 'inherit',
-  backgroundColor: token('elevation.surface.sunken', '#F7F8F9'),
-};
-
-// Cmd/Ctrl+K toggles from anywhere in the app, independent of whether the trigger button in
-// the sidebar is even visible/scrolled into view — matches the shortcut every reference
-// product trains users to reach for without looking at the sidebar first.
 export function useCommandPaletteHotkey(onToggle: () => void) {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -52,9 +29,7 @@ export function useCommandPaletteHotkey(onToggle: () => void) {
 
 // Scoped to Employees today — the one module with a real, populated dataset. A "universal"
 // palette that also claims to search Departments/Documents before those have real content
-// would be decoration wearing the shape of a feature. Structured as its own component so
-// extending the scope later (more entity types, recent-items tracking) is additive, not a
-// rewrite.
+// would be decoration wearing the shape of a feature.
 export function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void }) {
   const navigate = useNavigate();
   const { employees, fetchEmployees } = useEmployeesStore();
@@ -67,16 +42,10 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
     fetchEmployees();
     setQuery('');
     setActiveIndex(0);
-    const raf = requestAnimationFrame(() => inputRef.current?.focus());
-    return () => cancelAnimationFrame(raf);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   const trimmed = query.trim().toLowerCase();
-  // Empty query shows the first several employees rather than nothing — a blank palette with
-  // no idea what's searchable is a worse first impression than a short "browse" list, and this
-  // app has no real "recently viewed" tracking to show instead (labeled "All employees", not
-  // "Recent", so it isn't claiming to be something it's not).
   const results = (
     trimmed
       ? employees.filter((e) => e.legal_name.toLowerCase().includes(trimmed) || e.employee_code.toLowerCase().includes(trimmed))
@@ -92,166 +61,84 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
     onClose();
   };
 
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        onClose();
-      } else if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        setActiveIndex((i) => Math.min(i + 1, results.length - 1));
-      } else if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        setActiveIndex((i) => Math.max(i - 1, 0));
-      } else if (e.key === 'Enter' && results[activeIndex]) {
-        e.preventDefault();
-        select(results[activeIndex].id);
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, results, activeIndex]);
-
-  if (!open) return null;
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setActiveIndex((i) => Math.min(i + 1, results.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setActiveIndex((i) => Math.max(i - 1, 0));
+    } else if (e.key === 'Enter' && results[activeIndex]) {
+      e.preventDefault();
+      select(results[activeIndex].id);
+    }
+  };
 
   return (
-    <div
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-      style={{
-        position: 'fixed',
-        inset: 0,
-        backgroundColor: 'rgba(9, 30, 66, 0.54)',
-        display: 'flex',
-        justifyContent: 'center',
-        paddingTop: '12vh',
-        zIndex: 500,
-      }}
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label="Search"
-        style={{
-          width: 560,
-          maxWidth: '90vw',
-          maxHeight: '60vh',
-          backgroundColor: token('elevation.surface.overlay', '#FFFFFF'),
-          borderRadius: 8,
-          boxShadow: '0 8px 24px rgba(9,30,66,0.25)',
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden',
-          height: 'fit-content',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px', borderBottom: `1px solid ${token('color.border', '#DCDFE4')}` }}>
-          <span style={{ color: token('color.icon.subtle', '#626F86'), display: 'flex' }}>
-            <SearchIcon />
-          </span>
-          <input
-            ref={inputRef}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search employees…"
-            style={{ flex: 1, minWidth: 0, border: 'none', outline: 'none', fontSize: 16, background: 'transparent', color: token('color.text', '#172B4D') }}
-          />
-          <kbd style={kbdStyle}>Esc</kbd>
-        </div>
-
-        <div style={{ overflowY: 'auto', padding: 8 }}>
-          {results.length === 0 ? (
-            <div style={{ padding: '32px 12px', textAlign: 'center', color: token('color.text.subtlest', '#8590A2'), fontSize: 13 }}>
-              No employees found.
-            </div>
-          ) : (
-            <>
-              <div
-                style={{
-                  padding: '6px 8px',
-                  fontSize: 11,
-                  fontWeight: 600,
-                  textTransform: 'uppercase',
-                  letterSpacing: 0.4,
-                  color: token('color.text.subtlest', '#8590A2'),
-                }}
-              >
-                {trimmed ? 'Employees' : 'All employees'}
-              </div>
-              {results.map((e, i) => (
-                <ResultRow
-                  key={e.id}
-                  active={i === activeIndex}
-                  name={e.legal_name}
-                  code={e.employee_code}
-                  onSelect={() => select(e.id)}
-                  onHover={() => setActiveIndex(i)}
-                />
-              ))}
-            </>
-          )}
-        </div>
-
-        <div
-          style={{
-            display: 'flex',
-            gap: 16,
-            padding: '8px 16px',
-            borderTop: `1px solid ${token('color.border', '#DCDFE4')}`,
-            fontSize: 12,
-            color: token('color.text.subtlest', '#8590A2'),
+    <Dialog.Root open={open} onOpenChange={(v) => !v && onClose()}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 z-[500] bg-[rgba(9,30,66,0.54)]" />
+        <Dialog.Content
+          onOpenAutoFocus={(e) => {
+            e.preventDefault();
+            inputRef.current?.focus();
           }}
+          aria-describedby={undefined}
+          className="fixed left-1/2 top-[12vh] z-[500] flex max-h-[60vh] w-[560px] max-w-[90vw] -translate-x-1/2 flex-col overflow-hidden rounded-lg bg-background shadow-[0_8px_24px_rgba(9,30,66,0.25)]"
         >
-          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <kbd style={kbdStyle}>↑↓</kbd> Navigate
-          </span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <kbd style={kbdStyle}>Enter</kbd> Select
-          </span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <kbd style={kbdStyle}>Esc</kbd> Close
-          </span>
-        </div>
-      </div>
-    </div>
-  );
-}
+          <Dialog.Title className="sr-only">Search employees</Dialog.Title>
+          <div className="flex items-center gap-2.5 border-b border-border px-4 py-3.5">
+            <Search className="h-[18px] w-[18px] shrink-0 text-text-subtle" aria-hidden="true" />
+            <input
+              ref={inputRef}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={onKeyDown}
+              placeholder="Search employees…"
+              className="min-w-0 flex-1 border-none bg-transparent text-base text-foreground outline-none"
+            />
+            <kbd className={kbdClass}>Esc</kbd>
+          </div>
 
-function ResultRow({
-  active,
-  name,
-  code,
-  onSelect,
-  onHover,
-}: {
-  active: boolean;
-  name: string;
-  code: string;
-  onSelect: () => void;
-  onHover: () => void;
-}) {
-  return (
-    <div
-      onMouseDown={(e) => {
-        e.preventDefault();
-        onSelect();
-      }}
-      onMouseEnter={onHover}
-      style={{
-        display: 'flex',
-        alignItems: 'baseline',
-        justifyContent: 'space-between',
-        padding: '8px 10px',
-        borderRadius: 4,
-        cursor: 'pointer',
-        backgroundColor: active ? token('color.background.selected', '#E9F2FF') : 'transparent',
-      }}
-    >
-      <span style={{ color: token('color.text', '#172B4D'), fontWeight: 500, fontSize: 14 }}>{name}</span>
-      <span style={{ color: token('color.text.subtlest', '#8590A2'), fontSize: 12 }}>{code}</span>
-    </div>
+          <div className="overflow-y-auto p-2">
+            {results.length === 0 ? (
+              <div className="p-8 text-center text-sm text-text-subtlest">No employees found.</div>
+            ) : (
+              <>
+                <div className="px-2 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-text-subtlest">
+                  {trimmed ? 'Employees' : 'All employees'}
+                </div>
+                {results.map((e, i) => (
+                  <div
+                    key={e.id}
+                    onMouseDown={(ev) => {
+                      ev.preventDefault();
+                      select(e.id);
+                    }}
+                    onMouseEnter={() => setActiveIndex(i)}
+                    className={cn('flex cursor-pointer items-baseline justify-between rounded px-2.5 py-2', i === activeIndex ? 'bg-selected-bg' : 'bg-transparent')}
+                  >
+                    <span className="text-sm font-medium text-foreground">{e.legal_name}</span>
+                    <span className="text-xs text-text-subtlest">{e.employee_code}</span>
+                  </div>
+                ))}
+              </>
+            )}
+          </div>
+
+          <div className="flex gap-4 border-t border-border px-4 py-2 text-xs text-text-subtlest">
+            <span className="flex items-center gap-1">
+              <kbd className={kbdClass}>↑↓</kbd> Navigate
+            </span>
+            <span className="flex items-center gap-1">
+              <kbd className={kbdClass}>Enter</kbd> Select
+            </span>
+            <span className="flex items-center gap-1">
+              <kbd className={kbdClass}>Esc</kbd> Close
+            </span>
+          </div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }

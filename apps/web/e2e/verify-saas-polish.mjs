@@ -13,7 +13,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const outDir = join(__dirname, 'output');
 mkdirSync(outDir, { recursive: true });
 
-const BASE_URL = 'http://localhost:5174';
+const BASE_URL = 'http://localhost:5173';
 const admin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { autoRefreshToken: false, persistSession: false } });
 
 const stamp = Date.now();

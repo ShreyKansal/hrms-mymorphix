@@ -1,0 +1,83 @@
+/*
+ * important: Atlaskit's still-active components (during this migration's transition period)
+ * ship a global, unscoped CSS reset via @atlaskit/css-reset, injected at runtime through
+ * Emotion — confirmed by inspecting document.head: every Emotion <style> tag lands after
+ * Vite's own dev-mode <style> tags for this file. Per the CSS cascade spec, *unlayered* rules
+ * always beat *layered* ones regardless of source order or specificity, and Tailwind v4 puts
+ * all its own output inside named layers (theme/base/components/utilities) — so without this,
+ * Atlaskit's reset silently wins every conflict on bare elements (div/header/button/etc.),
+ * which is exactly what broke the AppShell header's flex layout. `important` makes every
+ * generated utility carry !important, the sanctioned way to coexist with unlayered legacy CSS
+ * during a transition — remove this once Atlaskit is fully gone and there's nothing left to
+ * out-cascade.
+ */
+@import "tailwindcss" important;
+
+/*
+ * Theme bridge: Supabase's design system (Radix + Tailwind, see
+ * docs/design-system/supabase-source/) supplies the component architecture — this app keeps
+ * Atlaskit's actual color palette and font stack, per explicit instruction, rather than
+ * Supabase's own brand colors. Every value below was measured from this app's real, live
+ * Atlaskit rendering (Playwright + getComputedStyle against actual elements — a primary
+ * Button, the sidebar's active nav item, a real TextField, a Lozenge, etc.), not guessed or
+ * copied from Atlaskit's docs. See apps/web/e2e/inspect-atlaskit-values.mjs for the
+ * measurement script if these ever need re-verifying against a future @atlaskit/tokens
+ * version.
+ */
+@theme {
+  --font-sans: -apple-system, "system-ui", "Segoe UI", Roboto, Oxygen, Ubuntu, "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
+
+  /* Atlaskit's real base radius — measured 3px consistently across Button, the native
+     SelectField wrapper, and Lozenge. Not Tailwind's own 6px default. */
+  --radius-sm: 2px;
+  --radius-md: 3px;
+  --radius-lg: 4px;
+
+  /* Surfaces */
+  --color-background: #ffffff;
+  --color-foreground: #172b4d;
+  --color-sunken: #f7f8f9;
+  --color-border: #dcdfe4;
+  --color-border-input: #8590a2;
+  --color-border-focused: #388bff;
+  --color-border-danger: #e2483d;
+
+  /* Text */
+  --color-text-subtle: #44546f;
+  --color-text-subtlest: #8590a2;
+  --color-text-danger: #de350b;
+  --color-text-inverse: #ffffff;
+
+  /* Primary (button) blue — #0052cc, measured directly off a live primary Button.
+     Distinct from the "selected/link" blue below; Atlaskit genuinely uses two blues. */
+  --color-primary: #0052cc;
+  --color-primary-foreground: #ffffff;
+
+  /* Selected/link blue — #0c66e4, measured off the sidebar's active nav item. */
+  --color-selected: #0c66e4;
+  --color-selected-bg: #e9f2ff;
+
+  /* Secondary / neutral */
+  --color-secondary: #f1f2f4;
+  --color-secondary-foreground: #172b4d;
+  --color-neutral-hover: #f1f2f4;
+
+  /* Status */
+  --color-success-bg: #e3fcef;
+  --color-success-text: #216e4e;
+  --color-warning-bg: #fff7d6;
+  --color-warning-text: #974f0c;
+  --color-danger-bg: #ffedeb;
+  --color-danger-text: #ae2e24;
+
+  /* Destructive action (buttons) — Atlaskit's R400 red. */
+  --color-destructive: #de350b;
+  --color-destructive-foreground: #ffffff;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  color: var(--color-foreground);
+  background-color: var(--color-background);
+}

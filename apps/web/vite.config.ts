@@ -1,9 +1,10 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import tailwindcss from '@tailwindcss/vite'
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
   build: {
     // Vite's default CSS minifier (lightningcss) rejects some selectors Atlaskit's
     // Emotion-based CSS-in-JS emits (e.g. `::-ms-input-placeholder:disabled`) as invalid per

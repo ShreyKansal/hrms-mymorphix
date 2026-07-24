@@ -15,7 +15,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const outDir = join(__dirname, 'output');
 mkdirSync(outDir, { recursive: true });
 
-const BASE_URL = 'http://localhost:5174';
+const BASE_URL = 'http://localhost:5173';
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {

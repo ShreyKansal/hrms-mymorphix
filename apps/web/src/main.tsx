@@ -1,5 +1,6 @@
 import { createRoot } from 'react-dom/client';
 import '@atlaskit/css-reset';
+import './styles/tailwind.css';
 import App from './App.tsx';
 
 // NOTE: deliberately NOT wrapped in <StrictMode>. Confirmed via a real browser test
