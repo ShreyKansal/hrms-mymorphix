@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import Heading from '@atlaskit/heading';
 import Lozenge from '@atlaskit/lozenge';
 import Tabs, { Tab, TabList, TabPanel } from '@atlaskit/tabs';
 import { supabase } from '../../lib/supabase';
+import { usePageTitleStore } from '../../lib/pageTitleStore';
 import type { Employee, EmploymentAssignment } from '../../lib/database.types';
 import ProfileTab from './ProfileTab';
 import EmploymentTab from './EmploymentTab';
@@ -42,13 +43,20 @@ export default function EmployeeDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
+  // Feeds AppShell's breadcrumb — the last segment on this dynamic route is this employee's
+  // actual name, not a generic label, and AppShell shouldn't need its own duplicate fetch just
+  // to know it. Cleared on unmount so a stale name doesn't flash on the next page.
+  useEffect(() => {
+    usePageTitleStore.getState().setTitle(employee?.legal_name ?? null);
+    return () => usePageTitleStore.getState().setTitle(null);
+  }, [employee]);
+
   if (loading) return <p style={{ padding: 24 }}>Loading…</p>;
   if (!employee) return <p style={{ padding: 24 }}>Not found.</p>;
 
   return (
     <div style={{ maxWidth: 864, margin: '0 auto', padding: 24 }}>
-      <Link to="/employees">&larr; Back to directory</Link>
-      <div style={{ marginTop: 16, marginBottom: 24 }}>
+      <div style={{ marginBottom: 24 }}>
         <Heading size="xlarge">{employee.legal_name}</Heading>
         <p>
           {employee.employee_code} · <Lozenge appearance="success">{employee.status}</Lozenge>
