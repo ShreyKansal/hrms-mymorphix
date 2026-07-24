@@ -8,6 +8,7 @@ import EmployeeDirectory from './modules/core-hr/EmployeeDirectory';
 import EmployeeDetail from './modules/core-hr/EmployeeDetail';
 import OrgChart from './modules/core-hr/OrgChart';
 import OrgManagement from './modules/org-management/OrgManagement';
+import AppShell from './lib/AppShell';
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { session, loading } = useAuthStore();
@@ -44,45 +45,19 @@ export default function App() {
           }
         />
         <Route
-          path="/employees"
           element={
             <RequireAuth>
               <RequireTenant>
-                <EmployeeDirectory />
+                <AppShell />
               </RequireTenant>
             </RequireAuth>
           }
-        />
-        <Route
-          path="/employees/:id"
-          element={
-            <RequireAuth>
-              <RequireTenant>
-                <EmployeeDetail />
-              </RequireTenant>
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/organisation"
-          element={
-            <RequireAuth>
-              <RequireTenant>
-                <OrgManagement />
-              </RequireTenant>
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/org-chart"
-          element={
-            <RequireAuth>
-              <RequireTenant>
-                <OrgChart />
-              </RequireTenant>
-            </RequireAuth>
-          }
-        />
+        >
+          <Route path="/employees" element={<EmployeeDirectory />} />
+          <Route path="/employees/:id" element={<EmployeeDetail />} />
+          <Route path="/organisation" element={<OrgManagement />} />
+          <Route path="/org-chart" element={<OrgChart />} />
+        </Route>
         <Route
           path="*"
           element={

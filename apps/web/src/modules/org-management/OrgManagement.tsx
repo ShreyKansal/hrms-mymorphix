@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import Heading from '@atlaskit/heading';
 import Button from '@atlaskit/button/new';
 import Tabs, { Tab, TabList, TabPanel } from '@atlaskit/tabs';
@@ -27,8 +26,7 @@ export default function OrgManagement() {
 
   return (
     <div style={{ maxWidth: 864, margin: '0 auto', padding: 24 }}>
-      <Link to="/employees">&larr; Back to directory</Link>
-      <div style={{ marginTop: 16, marginBottom: 24 }}>
+      <div style={{ marginBottom: 24 }}>
         <Heading size="large">Organisation</Heading>
       </div>
 

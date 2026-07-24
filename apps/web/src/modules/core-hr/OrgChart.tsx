@@ -60,8 +60,7 @@ export default function OrgChart() {
 
   return (
     <div style={{ maxWidth: 864, margin: '0 auto', padding: 24 }}>
-      <Link to="/employees">&larr; Back to directory</Link>
-      <div style={{ marginTop: 16, marginBottom: 24 }}>
+      <div style={{ marginBottom: 24 }}>
         <Heading size="large">Org chart</Heading>
       </div>
 
