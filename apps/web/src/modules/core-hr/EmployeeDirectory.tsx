@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import Button from '@atlaskit/button/new';
 import DynamicTable from '@atlaskit/dynamic-table';
@@ -7,14 +7,15 @@ import Lozenge from '@atlaskit/lozenge';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { useAuthStore } from '../auth/store';
 import { useEmployeesStore } from './store';
-import CreateEmployeeModal from './CreateEmployeeModal';
 
 // docs/build/build-guides/01-core-hr-employee-information.md screen #1 —
 // "keep row actions minimal ... click a row -> Employee Detail page."
 // Now backed by Zustand + Supabase Realtime instead of TanStack Query + REST polling —
 // the list updates live on any insert/update to this tenant's employees, from any tab.
+// "Add employee" is a Link to a full page (/employees/new), not a Modal — see
+// docs/build/03-ui-patterns.md §2 for why: a 5-step, multi-category, infrequent task fails
+// both NN/g's and Smashing Magazine's thresholds for staying a Modal.
 export default function EmployeeDirectory() {
-  const [isCreateOpen, setCreateOpen] = useState(false);
   const role = useAuthStore((s) => s.role);
   const { employees, loading, error, fetchEmployees, subscribeToChanges, unsubscribe } = useEmployeesStore();
 
@@ -67,9 +68,9 @@ export default function EmployeeDirectory() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <Heading size="large">Employee Directory</Heading>
         {role === 'admin' && (
-          <Button appearance="primary" onClick={() => setCreateOpen(true)}>
-            Add employee
-          </Button>
+          <Link to="/employees/new">
+            <Button appearance="primary">Add employee</Button>
+          </Link>
         )}
       </div>
 
@@ -96,8 +97,6 @@ export default function EmployeeDirectory() {
         rowsPerPage={20}
         defaultPage={1}
       />
-
-      {isCreateOpen && <CreateEmployeeModal onClose={() => setCreateOpen(false)} onCreated={() => setCreateOpen(false)} />}
     </div>
   );
 }

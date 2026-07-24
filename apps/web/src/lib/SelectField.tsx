@@ -13,6 +13,13 @@ import type { FieldProps } from '@atlaskit/form';
 // next to it — measured TextField's real rendered box (40px height, 3px radius, 1px border)
 // and its actual design tokens (color.border.input at rest, color.border.focused on focus)
 // directly from a live page rather than guessing, so this isn't an approximation.
+//
+// display: 'block' matters more than it looks — a native <select> defaults to inline-block,
+// so inside @atlaskit/form's Field (whose label isn't block-level on its own) the select just
+// continued in the same line as its label instead of wrapping below it, while every TextField
+// next to it stacked correctly (TextField's own wrapper is block-level, which is what actually
+// forced the line break for those). Every SelectField usage had this — Create Employee's Work
+// Information step is what finally made it visible in a real browser run, not a new regression.
 export function SelectField({
   fieldProps: { isDisabled, isRequired, isInvalid, ...selectProps },
   children,
@@ -37,6 +44,7 @@ export function SelectField({
         selectProps.onBlur?.();
       }}
       style={{
+        display: 'block',
         height: 40,
         minWidth: 160,
         padding: '0 6px',

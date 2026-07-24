@@ -449,6 +449,10 @@ export type Database = {
           p_designation_id?: string | null;
           p_grade_id?: string | null;
           p_manager_id?: string | null;
+          p_date_of_birth?: string | null;
+          p_gender?: string | null;
+          p_pan_number?: string | null;
+          p_personal_phone?: string | null;
         };
         Returns: Employee;
       };

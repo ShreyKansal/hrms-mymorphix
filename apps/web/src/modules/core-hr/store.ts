@@ -22,7 +22,11 @@ interface EmployeesState {
     designationId?: string;
     gradeId?: string;
     managerId?: string;
-  }) => Promise<{ error: string | null }>;
+    dateOfBirth?: string;
+    gender?: string;
+    panNumber?: string;
+    personalPhone?: string;
+  }) => Promise<{ error: string | null; employee: Employee | null }>;
   transferEmployee: (input: {
     employeeId: string;
     effectiveFrom: string;
@@ -74,8 +78,21 @@ export const useEmployeesStore = create<EmployeesState>((set, get) => ({
     set({ employees: withCurrent, loading: false });
   },
 
-  createEmployee: async ({ legalEntityId, legalName, joiningDate, personalEmail, departmentId, designationId, gradeId, managerId }) => {
-    const { error } = await supabase.rpc('create_employee', {
+  createEmployee: async ({
+    legalEntityId,
+    legalName,
+    joiningDate,
+    personalEmail,
+    departmentId,
+    designationId,
+    gradeId,
+    managerId,
+    dateOfBirth,
+    gender,
+    panNumber,
+    personalPhone,
+  }) => {
+    const { data, error } = await supabase.rpc('create_employee', {
       p_legal_entity_id: legalEntityId,
       p_legal_name: legalName,
       p_joining_date: joiningDate,
@@ -85,10 +102,14 @@ export const useEmployeesStore = create<EmployeesState>((set, get) => ({
       p_designation_id: designationId || null,
       p_grade_id: gradeId || null,
       p_manager_id: managerId || null,
+      p_date_of_birth: dateOfBirth || null,
+      p_gender: gender || null,
+      p_pan_number: panNumber || null,
+      p_personal_phone: personalPhone || null,
     });
-    if (error) return { error: error.message };
+    if (error) return { error: error.message, employee: null };
     await get().fetchEmployees();
-    return { error: null };
+    return { error: null, employee: data };
   },
 
   // Calls the same transfer_employee() RPC verified end-to-end against the live project

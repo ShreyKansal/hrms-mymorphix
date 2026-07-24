@@ -38,11 +38,19 @@ Source: [`apps/web/src/modules/core-hr/`](../../../apps/web/src/modules/core-hr/
    - **Assets** — not built (Module 14 doesn't exist).
    - **Timeline** (unified audit feed) — not built (no audit-log table yet).
 
-3. **Create Employee** (`CreateEmployeeModal.tsx`) — built. Modal, `@atlaskit/form`. Fields: legal name, personal email, joining date, department/designation/grade/manager (all optional pickers, sourced from `org-management`'s store and the employees list). Calls the `create_employee()` Postgres function.
+3. **Create Employee** (`CreateEmployee.tsx`, route `/employees/new`) — built. Full page + 5-step wizard (`Stepper.tsx`), not a Modal — see [`03-ui-patterns.md`](../03-ui-patterns.md) §2 for why the Modal version was rebuilt. Steps: Personal & contact (legal name, DOB, gender, PAN, personal email/phone) → Work information (joining date, employment type, department/designation/grade/manager) → Education (optional, repeatable) → Previous employment (optional, repeatable) → Review & create. Education/previous-employment rows are held in wizard state and only written once the employee record exists; everything else goes through `create_employee()` in one call. Lands on the new employee's Detail page on success (that's where Documents gets uploaded, not a wizard step).
 
 4. **Transfer Employee** (`TransferEmployeeModal.tsx`) — built. Modal, defaults every field to the current assignment's value so a transfer is normally a one-field change. Fields: effective date, reason (dropdown), department/designation/grade/manager/employment type. Calls `transfer_employee()`. **Not built:** the payroll-lock check on backdated transfers (Module 6 doesn't exist yet).
 
 5. **Org Chart** (`OrgChart.tsx`) — built, basic version. Manager → reports tree built client-side from the same employees list the Directory fetches (no separate query). Employees with no manager, or a manager outside the RLS-visible set, render as roots.
+
+## Key user flow: adding an employee (as actually built)
+
+1. From the Directory, "Add employee" (admin-only) navigates to `/employees/new` — a real page, not a Modal opened on top of the Directory.
+2. Five steps, in enforced order (steps aren't clickable — no skipping ahead): Personal & contact → Work information → Education → Previous employment → Review & create. Each of the first four is its own `@atlaskit/form` instance so required-field validation/asterisks work per step; values persist in the wizard's own state across Back/Next, not lost on remount.
+3. Review & create shows everything entered, grouped exactly like the Profile tab will show it afterward. Submitting calls `supabase.rpc('create_employee', {...})` — legal-entity/department/designation/grade/manager id ownership is verified server-side, same as before, plus a caller-is-admin check.
+4. If Education/Previous employment rows were added, they're bulk-inserted directly (`employee_education`/`employee_previous_employment`) using the id `create_employee()` just returned — best-effort: if this step fails, the employee record itself is already safely created, and the same rows can be added from the Profile tab afterward exactly like any other time.
+5. Redirects to the new employee's Detail page — where Documents can be uploaded via the existing `DocumentsTab.tsx`, not a wizard step (see the Screens section above for why).
 
 ## Key user flow: transferring an employee (as actually built)
 
@@ -54,7 +62,7 @@ Source: [`apps/web/src/modules/core-hr/`](../../../apps/web/src/modules/core-hr/
 
 ## States a record can be in
 
-Schema supports `draft | active | on_leave | suspended | separation_initiated | separated` (`employees.status` check constraint). `create_employee()` always creates as `'draft'`; nothing in the UI transitions status yet — no "confirm employee" or separation flow exists.
+Schema supports `draft | active | on_leave | suspended | separation_initiated | separated` (`employees.status` check constraint). `create_employee()` creates as `'active'` — per the PRD's own direct-entry flow (§6 step 5: "Record saved in 'Active' status"); `'draft'` is specifically for records created via the Module 3 onboarding flow, which doesn't exist yet, so it never applied to this RPC's only caller. Nothing in the UI transitions status after creation yet — no on-leave/suspend/separation flow exists.
 
 ## How writes actually work (no REST API)
 
@@ -65,7 +73,7 @@ There is no REST/HTTP API layer — the frontend talks to Postgres directly via 
 
 ## Components to use (Atlaskit)
 
-`@atlaskit/dynamic-table` (Directory), `@atlaskit/tabs` (Detail page — note: no `@atlaskit/page-header`, not a dependency), `@atlaskit/form` + `@atlaskit/textfield` for every form (no `@atlaskit/select` — plain native `<select>` wrapped by the shared [`src/lib/SelectField.tsx`](../../../apps/web/src/lib/SelectField.tsx) adapter instead, see that file's comment for why), `@atlaskit/modal-dialog` (Create/Transfer), `@atlaskit/lozenge` (status badges), `recharts` (Directory's headcount chart). No Timeline component exists since the Timeline tab isn't built.
+`@atlaskit/dynamic-table` (Directory), `@atlaskit/tabs` (Detail page — note: no `@atlaskit/page-header`, not a dependency), `@atlaskit/form` + `@atlaskit/textfield` for every form (no `@atlaskit/select` — plain native `<select>` wrapped by the shared [`src/lib/SelectField.tsx`](../../../apps/web/src/lib/SelectField.tsx) adapter instead, see that file's comment for why), `@atlaskit/modal-dialog` (Transfer only — Create Employee is a full page now, see above), the shared [`src/lib/Stepper.tsx`](../../../apps/web/src/lib/Stepper.tsx) progress indicator (Create Employee), `@atlaskit/lozenge` (status badges), `recharts` (Directory's headcount chart). No Timeline component exists since the Timeline tab isn't built.
 
 ## What "done" looks like today
 

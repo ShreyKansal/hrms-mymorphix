@@ -54,27 +54,40 @@ not house opinion.
 | Tier | When | Today |
 |---|---|---|
 | **Inline form** | 1–4 fields, adding one row to a list already on screen. No context switch needed. | Add department/designation/grade (`OrgManagement.tsx`), education/previous-employment (`ProfileTab.tsx`), document upload (`DocumentsTab.tsx`), invite teammate (`Team.tsx`). |
-| **Modal** | A short, self-contained, *single-purpose* task — not a multi-category form. Per Smashing Magazine's framework: modal only if the user doesn't need to reference other on-screen data, and the task is brief. **Never for "complex, lengthy multi-step tasks"** — that's their explicit rule, not a judgment call. | Nothing in the app currently fits this tier cleanly (see below). |
-| **Full page, likely a stepper/wizard** | NN/g's threshold: **more than 6–7 fields, OR fields that split into distinct categories** (e.g. contact info + work info + personal info), *and* the task is infrequent (not something the same user repeats constantly). Wizards specifically help here by breaking an overwhelming form into digestible, self-sufficient steps with visible progress. | **Not built yet — this is the gap.** |
+| **Modal** | A short, self-contained, *single-purpose* task — not a multi-category form. Per Smashing Magazine's framework: modal only if the user doesn't need to reference other on-screen data, and the task is brief. **Never for "complex, lengthy multi-step tasks"** — that's their explicit rule, not a judgment call. | Transfer Employee (`TransferEmployeeModal.tsx`) — re-assessed below, this is the one case in the app that actually belongs here. |
+| **Full page, likely a stepper/wizard** | NN/g's threshold: **more than 6–7 fields, OR fields that split into distinct categories** (e.g. contact info + work info + personal info), *and* the task is infrequent (not something the same user repeats constantly). Wizards specifically help here by breaking an overwhelming form into digestible, self-sufficient steps with visible progress. | Add Employee (`CreateEmployee.tsx`, route `/employees/new`) — 5 steps, see below. |
 
-**Known violation, not yet fixed:** `CreateEmployeeModal.tsx` and `TransferEmployeeModal.tsx`
-are both Modals today, and both fail this rule. Create Employee is a textbook wizard candidate —
-infrequent (once per hire), and the PRD's own Module 1 field groups (personal, contact,
-government IDs, work info, education, previous employment, assets) are exactly the "distinct
-categories" trigger NN/g describes. It currently only has 7 fields because that's all that's
-been built, not because 7 is the real scope — Zoho People's own Add Employee page (a direct
-competitor benchmark) is a full page with six sections and embedded sub-tables for Education,
-Experience, and Assets. **Flagged here deliberately rather than silently left as "the modal
-works fine"** — rebuilding this as a full-page, section-or-stepper flow is a real, sized piece
-of work, not a quick fix, and should be planned as its own task rather than folded into
-something else.
+**Resolved: Create Employee.** Was `CreateEmployeeModal.tsx`, a 7-field Modal; rebuilt as a
+full page with a stepper. This was the flagged violation — infrequent (once per hire), and its
+real field groups split into genuinely distinct categories (personal, contact, work info,
+education, previous employment) per the PRD's own Module 1 field list, not one topic. Zoho
+People's Add Employee page (the competitor benchmark that prompted this review) is a full page
+with sectioned/sub-tabled groups for exactly this reason. Steps, in order: **Personal & contact
+→ Work information → Education → Previous employment → Review & create.** Education and
+Previous employment are optional (repeatable, addable, removable — same inline-add UX as
+`ProfileTab.tsx`'s own sections, just held in wizard state until the final step actually
+creates the record) rather than forced stops. Documents is deliberately **not** a step: a
+document upload needs a real `employee_id` (the storage path is tenant/employee-scoped, see
+§9's storage RLS pattern), and `DocumentsTab.tsx` on the landing page already does this well —
+duplicating that logic to run before the employee exists wasn't worth it. Wizard rules actually
+applied, from NN/g: a persistent step indicator (`Stepper.tsx`, new shared component in
+`src/lib/` since the next infrequent multi-step flow — Onboarding/Module 3, Separation/Module
+15 — will want the same shape); enforced order (steps aren't clickable, no skipping ahead);
+each step self-sufficient; Next/Previous labeled with the actual next step's name, not generic
+text; and a non-admin never reaches the page at all (mirrors the existing hidden-button
+pattern one step further — the route itself redirects, not just the entry point), consistent
+with this doc's UX-is-not-security framing.
 
-Wizard design rules, once this gets built (from NN/g, don't reinvent):
-visible step/progress indicator; enforced step order — no skipping ahead; each step
-self-sufficient (no needing to remember something from a different step); "Next"/"Previous"
-labeled with the actual step name, not generic labels; and — importantly — **don't wizard-ify
-things a user does constantly**. Wizards are for infrequent, complex, one-shot tasks; forcing a
-frequent action through a multi-step flow is friction NN/g explicitly warns against.
+**Resolved: Transfer Employee, re-assessed and confirmed correct as a Modal.** Re-run against
+the same researched criteria rather than assumed clean by association with Create Employee:
+`TransferEmployeeModal.tsx` has 7 fields, right at NN/g's numeric edge, but they're **one
+category, not several** — every field is "this employee's next assignment" (department,
+designation, grade, manager, employment type, effective date, reason), not personal-vs-work-vs-
+education the way Create Employee's fields split. Every field also defaults to the current
+assignment's value, so a real transfer is usually a one- or two-field change, not a from-scratch
+form fill. Per Smashing Magazine's decision tree: the user doesn't need to reference other
+on-screen data mid-task, and the task is brief — neither test trips the "never a Modal for
+complex, lengthy multi-step tasks" rule. Left as-is, deliberately, not by default.
 
 ## 3. Breadcrumbs and navigation
 
@@ -160,6 +173,17 @@ reported inconsistency — `SelectField` now measures 40px tall, 3px corner radi
 `color.border.input` at rest / `color.border.focused` on focus, all read from `@atlaskit/tokens`
 rather than hardcoded so it stays theme-correct — pixel-matched against a live `TextField`
 render, not eyeballed).
+
+**A second real bug in the same component, found by the Create Employee wizard's browser
+verification:** the rendered `<select>` had no `display` set, so it defaulted to the browser's
+native `inline-block`. A `Field`'s own label isn't block-level on its own — `TextField`'s label
+only ever appeared to stack correctly above it because `TextField`'s wrapper is block-level and
+forced the line break; `SelectField` had no such wrapper, so the select just continued on the
+same line as its label instead. Every existing `SelectField` usage had this (Transfer Employee,
+Team's invite-role picker) — it just took a page with several selects stacked in a plain
+(non-flex) `FormSection` to make it visually obvious. Fixed with one `display: 'block'` in the
+shared component, verified against both the Work Information step (stacks correctly now) and
+Team's flex-row invite form (still lays out side-by-side correctly, not stretched to 100%).
 
 ## 8. Status and category labels
 

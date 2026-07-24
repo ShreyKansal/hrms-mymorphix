@@ -67,6 +67,18 @@ function Breadcrumbs() {
   const location = useLocation();
   const pageTitle = usePageTitleStore((s) => s.title);
 
+  if (location.pathname === '/employees/new') {
+    return (
+      <div style={{ fontSize: 14, color: '#44546F' }}>
+        <Link to="/employees" style={{ color: '#44546F' }}>
+          Employees
+        </Link>
+        {' / '}
+        <span style={{ color: '#172B4D', fontWeight: 500 }}>Add employee</span>
+      </div>
+    );
+  }
+
   if (/^\/employees\/[^/]+$/.test(location.pathname)) {
     return (
       <div style={{ fontSize: 14, color: '#44546F' }}>
