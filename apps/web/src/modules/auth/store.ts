@@ -29,9 +29,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   loading: true,
 
   initialise: async () => {
+    // loading must stay true until BOTH the session and (if a session exists) the tenant
+    // lookup have resolved. Setting it false right after getSession() — before awaiting
+    // refreshProfile() — created a real window where RequireTenant saw loading:false and
+    // tenantId:null simultaneously and redirected an already-tenanted user to /setup, who then
+    // got stuck there (nothing pulls them back once tenantId actually resolves moments later).
+    // Reproduced via a real page reload against the live project.
     const { data } = await supabase.auth.getSession();
-    set({ session: data.session, loading: false });
+    set({ session: data.session });
     if (data.session) await get().refreshProfile();
+    set({ loading: false });
 
     supabase.auth.onAuthStateChange((_event, session) => {
       set({ session });

@@ -97,6 +97,29 @@ export type Grade = {
   name: string;
 };
 
+export type EmployeeEducation = {
+  id: string;
+  tenant_id: string;
+  employee_id: string;
+  institution: string;
+  degree: string;
+  field_of_study: string | null;
+  start_year: number | null;
+  end_year: number | null;
+  created_at: string;
+};
+
+export type EmployeePreviousEmployment = {
+  id: string;
+  tenant_id: string;
+  employee_id: string;
+  company_name: string;
+  designation: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  created_at: string;
+};
+
 // Minimal shape satisfying @supabase/supabase-js's generic Database type parameter —
 // enough for typed .from()/.rpc() calls without hand-writing the full generated schema.
 // Every table needs `Relationships` and the schema needs `Views`, even if empty — the
@@ -275,6 +298,56 @@ export type Database = {
         Row: Profile;
         Insert: { id: string; tenant_id?: string | null; employee_id?: string | null };
         Update: { id?: string; tenant_id?: string | null; employee_id?: string | null };
+        Relationships: [];
+      };
+      employee_education: {
+        Row: EmployeeEducation;
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          employee_id: string;
+          institution: string;
+          degree: string;
+          field_of_study?: string | null;
+          start_year?: number | null;
+          end_year?: number | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string;
+          employee_id?: string;
+          institution?: string;
+          degree?: string;
+          field_of_study?: string | null;
+          start_year?: number | null;
+          end_year?: number | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      employee_previous_employment: {
+        Row: EmployeePreviousEmployment;
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          employee_id: string;
+          company_name: string;
+          designation?: string | null;
+          start_date?: string | null;
+          end_date?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string;
+          employee_id?: string;
+          company_name?: string;
+          designation?: string | null;
+          start_date?: string | null;
+          end_date?: string | null;
+          created_at?: string;
+        };
         Relationships: [];
       };
     };
