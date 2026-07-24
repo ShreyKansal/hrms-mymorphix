@@ -18,6 +18,18 @@ interface EmployeesState {
     legalName: string;
     joiningDate: string;
     personalEmail?: string;
+    departmentId?: string;
+    designationId?: string;
+    gradeId?: string;
+  }) => Promise<{ error: string | null }>;
+  transferEmployee: (input: {
+    employeeId: string;
+    effectiveFrom: string;
+    reasonCode: string;
+    departmentId?: string;
+    designationId?: string;
+    gradeId?: string;
+    employmentType?: string;
   }) => Promise<{ error: string | null }>;
   subscribeToChanges: () => void;
   unsubscribe: () => void;
@@ -60,13 +72,35 @@ export const useEmployeesStore = create<EmployeesState>((set, get) => ({
     set({ employees: withCurrent, loading: false });
   },
 
-  createEmployee: async ({ legalEntityId, legalName, joiningDate, personalEmail }) => {
+  createEmployee: async ({ legalEntityId, legalName, joiningDate, personalEmail, departmentId, designationId, gradeId }) => {
     const { error } = await supabase.rpc('create_employee', {
       p_legal_entity_id: legalEntityId,
       p_legal_name: legalName,
       p_joining_date: joiningDate,
       p_employment_type: 'Permanent',
       p_personal_email: personalEmail || null,
+      p_department_id: departmentId || null,
+      p_designation_id: designationId || null,
+      p_grade_id: gradeId || null,
+    });
+    if (error) return { error: error.message };
+    await get().fetchEmployees();
+    return { error: null };
+  },
+
+  // Calls the same transfer_employee() RPC verified end-to-end against the live project
+  // (effective-dating: closes out the current assignment, inserts a new one). tenant-ownership
+  // checks on every id happen server-side (see supabase/migrations/20260724020000_*.sql) — the
+  // client doesn't need to re-validate them here.
+  transferEmployee: async ({ employeeId, effectiveFrom, reasonCode, departmentId, designationId, gradeId, employmentType }) => {
+    const { error } = await supabase.rpc('transfer_employee', {
+      p_employee_id: employeeId,
+      p_effective_from: effectiveFrom,
+      p_reason_code: reasonCode,
+      p_department_id: departmentId || null,
+      p_designation_id: designationId || null,
+      p_grade_id: gradeId || null,
+      p_employment_type: employmentType || null,
     });
     if (error) return { error: error.message };
     await get().fetchEmployees();

@@ -6,6 +6,7 @@ import Auth from './modules/auth/Auth';
 import TenantSetup from './modules/auth/TenantSetup';
 import EmployeeDirectory from './modules/core-hr/EmployeeDirectory';
 import EmployeeDetail from './modules/core-hr/EmployeeDetail';
+import OrgManagement from './modules/org-management/OrgManagement';
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { session, loading } = useAuthStore();
@@ -57,6 +58,16 @@ export default function App() {
             <RequireAuth>
               <RequireTenant>
                 <EmployeeDetail />
+              </RequireTenant>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/organisation"
+          element={
+            <RequireAuth>
+              <RequireTenant>
+                <OrgManagement />
               </RequireTenant>
             </RequireAuth>
           }

@@ -8,6 +8,7 @@ import Form, { Field, FormSection, ErrorMessage, MessageWrapper } from '@atlaski
 import TextField from '@atlaskit/textfield';
 import { supabase } from '../../lib/supabase';
 import type { Employee, EmploymentAssignment } from '../../lib/database.types';
+import TransferEmployeeModal from './TransferEmployeeModal';
 
 const labelStyle = { color: '#626F86', fontSize: 12, fontWeight: 600, marginTop: 12 };
 const valueStyle = { margin: '2px 0 0' };
@@ -126,12 +127,24 @@ function ProfileTab({ employee, onSaved }: { employee: Employee; onSaved: (updat
   );
 }
 
-function EmploymentTab({ assignments }: { assignments: EmploymentAssignment[] }) {
+function EmploymentTab({
+  employeeId,
+  assignments,
+  onTransferred,
+}: {
+  employeeId: string;
+  assignments: EmploymentAssignment[];
+  onTransferred: () => void;
+}) {
   const current = assignments.find((a) => a.effective_to === null);
+  const [transferOpen, setTransferOpen] = useState(false);
 
   return (
     <div>
-      <Heading size="small">Current assignment</Heading>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Heading size="small">Current assignment</Heading>
+        <Button onClick={() => setTransferOpen(true)}>Transfer</Button>
+      </div>
       {current ? (
         <div style={{ marginBottom: 24 }}>
           <p style={labelStyle}>Department</p>
@@ -178,6 +191,18 @@ function EmploymentTab({ assignments }: { assignments: EmploymentAssignment[] })
           ))}
         </tbody>
       </table>
+
+      {transferOpen && (
+        <TransferEmployeeModal
+          employeeId={employeeId}
+          current={current}
+          onClose={() => setTransferOpen(false)}
+          onTransferred={() => {
+            setTransferOpen(false);
+            onTransferred();
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -188,25 +213,28 @@ export default function EmployeeDetail() {
   const [assignments, setAssignments] = useState<EmploymentAssignment[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const fetchAssignments = async (employeeId: string) => {
+    const { data: history } = await supabase
+      .from('employment_assignments')
+      .select('*, departments(*), designations(*), grades(*)')
+      .eq('employee_id', employeeId)
+      .order('effective_from', { ascending: false });
+    setAssignments(history ?? []);
+  };
+
   useEffect(() => {
     if (!id) return;
     (async () => {
       setLoading(true);
-      const [{ data: emp }, { data: history }] = await Promise.all([
-        // .maybeSingle(), not .single(): a bad/stale URL (deleted employee, wrong tenant)
-        // legitimately resolves to zero rows — the "Not found" branch below already handles
-        // that. .single() would log a 406 console error for what's a normal UI state.
-        supabase.from('employees').select('*').eq('id', id).maybeSingle(),
-        supabase
-          .from('employment_assignments')
-          .select('*, departments(*), designations(*), grades(*)')
-          .eq('employee_id', id)
-          .order('effective_from', { ascending: false }),
-      ]);
+      // .maybeSingle(), not .single(): a bad/stale URL (deleted employee, wrong tenant)
+      // legitimately resolves to zero rows — the "Not found" branch below already handles
+      // that. .single() would log a 406 console error for what's a normal UI state.
+      const { data: emp } = await supabase.from('employees').select('*').eq('id', id).maybeSingle();
       setEmployee(emp);
-      setAssignments(history ?? []);
+      await fetchAssignments(id);
       setLoading(false);
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   if (loading) return <p style={{ padding: 24 }}>Loading…</p>;
@@ -234,7 +262,7 @@ export default function EmployeeDetail() {
         </TabPanel>
         <TabPanel>
           <div style={{ paddingTop: 16 }}>
-            <EmploymentTab assignments={assignments} />
+            <EmploymentTab employeeId={employee.id} assignments={assignments} onTransferred={() => fetchAssignments(employee.id)} />
           </div>
         </TabPanel>
       </Tabs>

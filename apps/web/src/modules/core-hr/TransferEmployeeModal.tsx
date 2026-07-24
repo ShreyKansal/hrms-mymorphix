@@ -3,30 +3,41 @@ import Button from '@atlaskit/button/new';
 import Form, { Field, FormSection, ErrorMessage, MessageWrapper } from '@atlaskit/form';
 import TextField from '@atlaskit/textfield';
 import Modal, { ModalBody, ModalFooter, ModalHeader, ModalTitle, ModalTransition } from '@atlaskit/modal-dialog';
-import { useAuthStore } from '../auth/store';
 import { useOrgManagementStore } from '../org-management/store';
 import { useEmployeesStore } from './store';
+import type { EmploymentAssignment } from '../../lib/database.types';
 import { SelectField } from '../../lib/SelectField';
 
+const REASON_CODES = ['Promotion', 'Transfer', 'ManagerChange', 'Correction'];
+
 interface FormData {
-  legalName: string;
-  personalEmail: string;
-  joiningDate: string;
+  effectiveFrom: string;
+  reasonCode: string;
   departmentId: string;
   designationId: string;
   gradeId: string;
+  employmentType: string;
 }
 
-// docs/build/build-guides/01-core-hr-employee-information.md screen #3 — "a focused
-// Modal ... one task per modal" per Atlaskit's own usage guidance.
-// NOTE: <StrictMode> is deliberately not used in main.tsx — @atlaskit/modal-dialog has a
-// genuine bug under React 18 StrictMode (closes itself immediately on open). See
-// docs/build/verification-evidence/README.md Bug 1. Nothing about the Supabase rewrite
-// changes that finding — it's an Atlaskit/React issue, unrelated to the backend.
-export default function CreateEmployeeModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+// docs/hrms-prd/modules/01-core-hr-employee-information.md §7.2 — a transfer never edits the
+// current assignment row in place, it closes it out and inserts a new one. That's entirely the
+// transfer_employee() RPC's job (already verified end-to-end, including the tenant-ownership
+// fix); this modal is just the form in front of it. Fields default to the current assignment's
+// values — a transfer is usually a change to ONE thing (e.g. just the designation), not a
+// from-scratch re-entry of everything.
+export default function TransferEmployeeModal({
+  employeeId,
+  current,
+  onClose,
+  onTransferred,
+}: {
+  employeeId: string;
+  current: EmploymentAssignment | undefined;
+  onClose: () => void;
+  onTransferred: () => void;
+}) {
   const [error, setError] = useState<string | null>(null);
-  const legalEntityId = useAuthStore((s) => s.legalEntityId);
-  const createEmployee = useEmployeesStore((s) => s.createEmployee);
+  const transferEmployee = useEmployeesStore((s) => s.transferEmployee);
   const { departments, designations, grades, fetchAll } = useOrgManagementStore();
 
   useEffect(() => {
@@ -39,27 +50,24 @@ export default function CreateEmployeeModal({ onClose, onCreated }: { onClose: (
       <Modal onClose={onClose}>
         <Form<FormData>
           onSubmit={async (data) => {
-            if (!legalEntityId) {
-              setError('No legal entity found for this workspace — run setup again.');
-              return;
-            }
-            const { error } = await createEmployee({
-              legalEntityId,
-              legalName: data.legalName,
-              joiningDate: data.joiningDate,
-              personalEmail: data.personalEmail,
+            setError(null);
+            const { error } = await transferEmployee({
+              employeeId,
+              effectiveFrom: data.effectiveFrom,
+              reasonCode: data.reasonCode,
               departmentId: data.departmentId || undefined,
               designationId: data.designationId || undefined,
               gradeId: data.gradeId || undefined,
+              employmentType: data.employmentType || undefined,
             });
             if (error) setError(error);
-            else onCreated();
+            else onTransferred();
           }}
         >
           {({ formProps }) => (
-            <form {...formProps} id="create-employee-form">
+            <form {...formProps} id="transfer-employee-form">
               <ModalHeader hasCloseButton>
-                <ModalTitle>Add employee</ModalTitle>
+                <ModalTitle>Transfer employee</ModalTitle>
               </ModalHeader>
               <ModalBody>
                 {error && (
@@ -68,19 +76,24 @@ export default function CreateEmployeeModal({ onClose, onCreated }: { onClose: (
                   </MessageWrapper>
                 )}
                 <FormSection>
-                  <Field name="legalName" label="Full legal name" isRequired defaultValue="">
-                    {({ fieldProps }) => <TextField {...fieldProps} autoFocus />}
+                  <Field name="effectiveFrom" label="Effective from" isRequired defaultValue="">
+                    {({ fieldProps }) => <TextField {...fieldProps} type="date" autoFocus />}
                   </Field>
-                  <Field name="personalEmail" label="Personal email" defaultValue="">
-                    {({ fieldProps }) => <TextField {...fieldProps} type="email" />}
-                  </Field>
-                  <Field name="joiningDate" label="Joining date" isRequired defaultValue="">
-                    {({ fieldProps }) => <TextField {...fieldProps} type="date" />}
-                  </Field>
-                  <Field<string, HTMLSelectElement> name="departmentId" label="Department" defaultValue="">
+                  <Field<string, HTMLSelectElement> name="reasonCode" label="Reason" isRequired defaultValue={REASON_CODES[0]}>
                     {({ fieldProps }) => (
                       <SelectField fieldProps={fieldProps}>
-                        <option value="">—</option>
+                        {REASON_CODES.map((r) => (
+                          <option key={r} value={r}>
+                            {r}
+                          </option>
+                        ))}
+                      </SelectField>
+                    )}
+                  </Field>
+                  <Field<string, HTMLSelectElement> name="departmentId" label="Department" defaultValue={current?.department_id ?? ''}>
+                    {({ fieldProps }) => (
+                      <SelectField fieldProps={fieldProps}>
+                        <option value="">— unchanged —</option>
                         {departments.map((d) => (
                           <option key={d.id} value={d.id}>
                             {d.name}
@@ -89,10 +102,10 @@ export default function CreateEmployeeModal({ onClose, onCreated }: { onClose: (
                       </SelectField>
                     )}
                   </Field>
-                  <Field<string, HTMLSelectElement> name="designationId" label="Designation" defaultValue="">
+                  <Field<string, HTMLSelectElement> name="designationId" label="Designation" defaultValue={current?.designation_id ?? ''}>
                     {({ fieldProps }) => (
                       <SelectField fieldProps={fieldProps}>
-                        <option value="">—</option>
+                        <option value="">— unchanged —</option>
                         {designations.map((d) => (
                           <option key={d.id} value={d.id}>
                             {d.title}
@@ -101,10 +114,10 @@ export default function CreateEmployeeModal({ onClose, onCreated }: { onClose: (
                       </SelectField>
                     )}
                   </Field>
-                  <Field<string, HTMLSelectElement> name="gradeId" label="Grade" defaultValue="">
+                  <Field<string, HTMLSelectElement> name="gradeId" label="Grade" defaultValue={current?.grade_id ?? ''}>
                     {({ fieldProps }) => (
                       <SelectField fieldProps={fieldProps}>
-                        <option value="">—</option>
+                        <option value="">— unchanged —</option>
                         {grades.map((g) => (
                           <option key={g.id} value={g.id}>
                             {g.code} — {g.name}
@@ -113,6 +126,9 @@ export default function CreateEmployeeModal({ onClose, onCreated }: { onClose: (
                       </SelectField>
                     )}
                   </Field>
+                  <Field name="employmentType" label="Employment type" defaultValue={current?.employment_type ?? ''}>
+                    {({ fieldProps }) => <TextField {...fieldProps} />}
+                  </Field>
                 </FormSection>
               </ModalBody>
               <ModalFooter>
@@ -120,7 +136,7 @@ export default function CreateEmployeeModal({ onClose, onCreated }: { onClose: (
                   Cancel
                 </Button>
                 <Button type="submit" appearance="primary">
-                  Create
+                  Transfer
                 </Button>
               </ModalFooter>
             </form>

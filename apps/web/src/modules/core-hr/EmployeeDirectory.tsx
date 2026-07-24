@@ -64,9 +64,12 @@ export default function EmployeeDirectory() {
     <div style={{ maxWidth: 1296, margin: '0 auto', padding: 24 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <Heading size="large">Employee Directory</Heading>
-        <Button appearance="primary" onClick={() => setCreateOpen(true)}>
-          Add employee
-        </Button>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <Link to="/organisation">Departments / designations / grades</Link>
+          <Button appearance="primary" onClick={() => setCreateOpen(true)}>
+            Add employee
+          </Button>
+        </div>
       </div>
 
       {error && <p style={{ color: 'red' }}>Could not load employees: {error}</p>}
