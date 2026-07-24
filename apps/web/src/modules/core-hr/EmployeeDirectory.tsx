@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Button from '@atlaskit/button/new';
 import DynamicTable from '@atlaskit/dynamic-table';
@@ -6,7 +6,25 @@ import Heading from '@atlaskit/heading';
 import Lozenge from '@atlaskit/lozenge';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { useAuthStore } from '../auth/store';
-import { useEmployeesStore } from './store';
+import { useEmployeesStore, type EmployeeWithCurrentAssignment } from './store';
+
+type SortKey = 'name' | 'code' | 'designation' | 'department' | 'status';
+
+function sortValue(emp: EmployeeWithCurrentAssignment, key: SortKey): string {
+  const current = emp.employment_assignments[0];
+  switch (key) {
+    case 'name':
+      return emp.legal_name;
+    case 'code':
+      return emp.employee_code;
+    case 'designation':
+      return current?.designations?.title ?? '';
+    case 'department':
+      return current?.departments?.name ?? '';
+    case 'status':
+      return emp.status;
+  }
+}
 
 // docs/build/build-guides/01-core-hr-employee-information.md screen #1 —
 // "keep row actions minimal ... click a row -> Employee Detail page."
@@ -18,6 +36,8 @@ import { useEmployeesStore } from './store';
 export default function EmployeeDirectory() {
   const role = useAuthStore((s) => s.role);
   const { employees, loading, error, fetchEmployees, subscribeToChanges, unsubscribe } = useEmployeesStore();
+  const [sortKey, setSortKey] = useState<SortKey | null>(null);
+  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('ASC');
 
   useEffect(() => {
     fetchEmployees();
@@ -26,17 +46,32 @@ export default function EmployeeDirectory() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Column widths as a percentage of the table's own width, not left to DynamicTable's default
+  // even-split — an even split is what stretched every column to the same width regardless of
+  // content (Name and Status ending up equally wide), which read as sparse/unfinished rather
+  // than deliberate. Real real-browser measurement (see docs/build/03-ui-patterns.md) is what
+  // caught this, not a guess.
   const head = {
     cells: [
-      { key: 'name', content: 'Name' },
-      { key: 'code', content: 'Employee ID' },
-      { key: 'designation', content: 'Designation' },
-      { key: 'department', content: 'Department' },
-      { key: 'status', content: 'Status' },
+      { key: 'name', content: 'Name', width: 28, isSortable: true },
+      { key: 'code', content: 'Employee ID', width: 18, isSortable: true },
+      { key: 'designation', content: 'Designation', width: 20, isSortable: true },
+      { key: 'department', content: 'Department', width: 20, isSortable: true },
+      { key: 'status', content: 'Status', width: 14, isSortable: true },
     ],
   };
 
-  const rows = employees.map((emp) => {
+  const sortedEmployees = useMemo(() => {
+    if (!sortKey) return employees;
+    const copy = [...employees];
+    copy.sort((a, b) => {
+      const cmp = sortValue(a, sortKey).localeCompare(sortValue(b, sortKey));
+      return sortOrder === 'ASC' ? cmp : -cmp;
+    });
+    return copy;
+  }, [employees, sortKey, sortOrder]);
+
+  const rows = sortedEmployees.map((emp) => {
     const current = emp.employment_assignments[0];
     return {
       key: emp.id,
@@ -80,7 +115,11 @@ export default function EmployeeDirectory() {
         <div style={{ height: 120, marginBottom: 24 }}>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData} layout="vertical">
-              <XAxis type="number" allowDecimals={false} hide />
+              {/* Explicit domain, not Recharts' default auto-padded one — with few status
+                  buckets (often just one, "active", early on) the default rounds the axis max
+                  up to a "nice" number well past the real data max, so even a 100%-active
+                  breakdown renders as a short, inexplicable-looking bar instead of a full one. */}
+              <XAxis type="number" allowDecimals={false} domain={[0, 'dataMax']} hide />
               <YAxis type="category" dataKey="status" width={100} />
               <Tooltip />
               <Bar dataKey="count" fill="#0C66E4" radius={[0, 4, 4, 0]} />
@@ -96,6 +135,12 @@ export default function EmployeeDirectory() {
         emptyView={<h4>No employees yet — add your first one to get started.</h4>}
         rowsPerPage={20}
         defaultPage={1}
+        sortKey={sortKey ?? undefined}
+        sortOrder={sortOrder}
+        onSort={({ key, sortOrder: order }) => {
+          setSortKey(key as SortKey);
+          setSortOrder(order);
+        }}
       />
     </div>
   );

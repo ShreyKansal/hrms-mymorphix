@@ -41,6 +41,18 @@ If a plain-`<table>` list starts accumulating its own sort/filter/pagination nee
 signal it's outgrown this rule and should move to DynamicTable — don't add ad hoc sort/filter
 code to a plain table instead.
 
+**DynamicTable columns need explicit widths, not the library's default even split.** Found on
+Employee Directory: an even split stretches every column to the same width regardless of what's
+actually in it — a one-word Status column ends up as wide as Name, reading as sparse/unfinished
+rather than deliberate (this is the concrete shape of "input fields ki width" as a complaint —
+it's not only about form inputs). Set `width` (a percentage of the table's own width) per head
+cell based on real content, e.g. Name wider than Status. And if a column is genuinely sortable
+data, wire it up for real — `isSortable: true` per head cell, plus **`sortKey`/`sortOrder` fed
+back into `DynamicTable` as controlled props**, not just an `onSort` callback. Without the
+controlled props, the header's sort arrow never updates and a second click doesn't reverse
+direction — DynamicTable has no way to know a column is "already sorted, so toggle" unless you
+tell it back. A decorative sort arrow that doesn't actually toggle is worse than no arrow.
+
 ## 2. Modal vs. inline form vs. full page / wizard
 
 **Revised after actual research, not just precedent** — the original version of this section
@@ -96,6 +108,21 @@ Navigation lives in two places, not per-page:
 - **Sidebar** (`AppShell.tsx`) — persistent, left side, one entry per top-level destination
   (Employees, Organisation, Org Chart, Team). A page reachable directly from the sidebar
   **never** adds its own "back" link — the sidebar already answers "how do I get elsewhere."
+  Slightly off-white background (`elevation.surface.sunken`), not plain white — separates it
+  from page content without needing a visible border to do all the work. Nav items get real
+  hover feedback (`NavItem` in `AppShell.tsx`, a small local-state pattern — see below), not
+  just an active-state highlight; a sidebar item that doesn't react to a pointer over it reads
+  as static chrome, not an interactive control, in every reference product checked (ClickUp,
+  Attio, Qubit).
+- **Sidebar search** (`SidebarSearch` in `AppShell.tsx`) — every competitor benchmark (ClickUp,
+  Attio) puts a real search box at the top of the sidebar, not just a global omnisearch buried
+  in a command palette. `Cmd/Ctrl+K` focuses it from anywhere (the shortcut every one of those
+  products trains users to reach for), `Escape` clears it, outside-click closes the results
+  dropdown. **Scoped to Employees today, deliberately** — that's the one module with a real,
+  populated dataset; a search box that also claims to search Departments/Documents/whatever
+  before those have real content behind them would be decoration, not a feature. Extend the
+  scope in `SidebarSearch` as more modules get real, searchable data — don't build a fake
+  all-modules search box ahead of that.
 - **Breadcrumb trail** (`AppShell.tsx`'s header, top bar) — one horizontal trail showing where
   the current page sits, in the Supabase/Jira-dashboard style (`Employees / Jane Doe`), not a
   link buried in the page body. Static routes get a one-word label from a lookup map
@@ -185,6 +212,18 @@ Team's invite-role picker) — it just took a page with several selects stacked 
 shared component, verified against both the Work Information step (stacks correctly now) and
 Team's flex-row invite form (still lays out side-by-side correctly, not stretched to 100%).
 
+**A single-column form where every field stretches to the page's full width reads as
+unfinished, not spacious.** Found on the Create Employee wizard: inside an 864px page, a
+one-word "Gender" or "PAN" field stretching the full 864px looked broken, not generous — real
+SaaS forms (Attio, Linear) cap field width and pair short fields side by side. Pattern now used
+in `CreateEmployee.tsx` (`formGridStyle`/`fullWidthFieldStyle`): a `display: grid,
+gridTemplateColumns: repeat(2, minmax(0, 1fr))` wrapper capped at `maxWidth: 640` inside each
+`FormSection`, wrapping each `<Field>` (or a `gridColumn: '1 / -1'` wrapper for the rare field
+that deserves its own row, e.g. a name). Pair fields that are genuinely short (date, single
+word, a short id) two-to-a-row; give a field its own row only when its content could plausibly
+be long. Apply this to any future multi-field form section — the old single-column stack was
+never a deliberate choice, just what `FormSection`'s own default layout does if left alone.
+
 ## 8. Status and category labels
 
 `@atlaskit/lozenge` for any short status/role/category tag. Current appearance convention:
@@ -208,6 +247,16 @@ statuses — rather than picking an appearance ad hoc per screen.
   These want the horizontal room a table or a wide tree actually needs.
 
 Both use `margin: '0 auto'` to center within the (already-narrower) `AppShell` main content area.
+
+**Detail-page headers get an avatar, not just stacked text.** Found missing on Employee Detail
+— a record-detail page with just a name and a status line, no visual anchor, reads as a plain
+document rather than a person's profile (every reference product puts a face/initials circle at
+the top of a person-record page). Pattern: `initials()` + a small fixed palette
+(`AVATAR_COLORS` in `EmployeeDetail.tsx`) hashed from the record's name, so the same person
+always gets the same color without needing a real photo-upload feature to back it — that's real,
+separate scope (a `documents`-style upload wired specifically to a profile-photo field), not
+something to half-build as a placeholder here. Apply the same pattern to the next
+person-or-org-record detail page this app grows (e.g. a future Vendor/Candidate detail page).
 
 ## 10. Module folder structure
 

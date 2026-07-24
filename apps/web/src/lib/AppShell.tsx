@@ -1,6 +1,9 @@
-import { NavLink, Link, Outlet, useLocation } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { NavLink, Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import Button from '@atlaskit/button/new';
+import { token } from '@atlaskit/tokens';
 import { useAuthStore } from '../modules/auth/store';
+import { useEmployeesStore } from '../modules/core-hr/store';
 import { usePageTitleStore } from './pageTitleStore';
 
 // Inlined rather than imported from @atlaskit/icon/glyph/*: this Vite/Rolldown version's CJS
@@ -30,6 +33,9 @@ const PeopleGroupIcon = () => (
 const TeamsIcon = () => (
   <IconSvg path='<path fill-rule="evenodd" d="M9 7.2a1.8 1.8 0 1 1-3.6 0 1.8 1.8 0 0 1 3.6 0m1.8 0a3.6 3.6 0 1 1-7.2 0 3.6 3.6 0 0 1 7.2 0m7.8 0a1.8 1.8 0 1 1-3.6 0 1.8 1.8 0 0 1 3.6 0m1.8 0a3.6 3.6 0 1 1-7.2 0 3.6 3.6 0 0 1 7.2 0m1.2 9.3a4.5 4.5 0 0 0-4.5-4.5h-1.378c-.484 0-1.275.127-1.875.41l.77 1.627c.14-.066.342-.129.566-.174s.421-.063.539-.063H17.1a2.7 2.7 0 0 1 2.7 2.7V18a.6.6 0 0 1-.6.6h-3.478a2.7 2.7 0 0 1-2.538-1.777l-.676-1.86A4.5 4.5 0 0 0 8.278 12H6.9a4.5 4.5 0 0 0-4.5 4.5V18a2.4 2.4 0 0 0 2.4 2.4h4.8v-1.8H4.8a.6.6 0 0 1-.6-.6v-1.5a2.7 2.7 0 0 1 2.7-2.7h1.378a2.7 2.7 0 0 1 2.538 1.777l.676 1.86a4.5 4.5 0 0 0 4.23 2.963H19.2a2.4 2.4 0 0 0 2.4-2.4z" clip-rule="evenodd"/>' />
 );
+const SearchIcon = () => (
+  <IconSvg path='<path fill-rule="evenodd" d="M10.5 3a7.5 7.5 0 1 0 4.55 13.46l4.245 4.244a1 1 0 0 0 1.414-1.414l-4.243-4.244A7.5 7.5 0 0 0 10.5 3M5 10.5a5.5 5.5 0 1 1 11 0 5.5 5.5 0 0 1-11 0" clip-rule="evenodd"/>' />
+);
 
 // Layout route (wraps every authenticated+tenanted page via <Outlet/>) rather than each page
 // managing its own header/back-link — added once real navigation started accumulating across
@@ -47,6 +53,200 @@ const navItems = [
   { to: '/org-chart', label: 'Org Chart', icon: PeopleGroupIcon, adminOnly: false },
   { to: '/team', label: 'Team', icon: TeamsIcon, adminOnly: true },
 ];
+
+// One reusable "does this element have hover feedback" pattern for an inline-style-only
+// codebase (no CSS files anywhere, so no :hover pseudo-class without either this or a new
+// global stylesheet — this is the smaller addition of the two). Used by both nav items and
+// search results rather than duplicating the same onMouseEnter/onMouseLeave dance twice.
+function useHover() {
+  const [hovered, setHovered] = useState(false);
+  return { hovered, onMouseEnter: () => setHovered(true), onMouseLeave: () => setHovered(false) };
+}
+
+function NavItem({ to, label, Icon }: { to: string; label: string; Icon: () => JSX.Element }) {
+  const { hovered, onMouseEnter, onMouseLeave } = useHover();
+  return (
+    <NavLink
+      to={to}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+      style={({ isActive }) => ({
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        padding: '6px 8px',
+        borderRadius: 4,
+        textDecoration: 'none',
+        color: isActive ? token('color.text.selected', '#0C66E4') : token('color.text', '#172B4D'),
+        background: isActive
+          ? token('color.background.selected', '#E9F2FF')
+          : hovered
+            ? token('color.background.neutral.subtle.hovered', '#F1F2F4')
+            : 'transparent',
+        fontWeight: isActive ? 600 : 400,
+      })}
+    >
+      <Icon />
+      {label}
+    </NavLink>
+  );
+}
+
+// Employees is the one module with a real, populated directory today — scoped here
+// deliberately rather than a fake omnisearch box that returns nothing for departments/docs
+// that don't have real searchable data yet. Extend the search scope as more modules do.
+function SidebarSearch() {
+  const navigate = useNavigate();
+  const { employees, fetchEmployees } = useEmployeesStore();
+  const [query, setQuery] = useState('');
+  const [open, setOpen] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    fetchEmployees();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Cmd/Ctrl+K jumps to the search box from anywhere in the app, matching the shortcut every
+  // reference product (ClickUp, Attio) trains users to expect for this exact control.
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        inputRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+
+  // A plain onBlur would fire before a result's onClick (blur-before-click ordering) and drop
+  // the click; listening for outside mousedown on the document sidesteps that race, same
+  // pattern real component libraries use for this exact problem.
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  const trimmed = query.trim().toLowerCase();
+  const results = trimmed
+    ? employees.filter((e) => e.legal_name.toLowerCase().includes(trimmed) || e.employee_code.toLowerCase().includes(trimmed)).slice(0, 8)
+    : [];
+  const showDropdown = open && trimmed.length > 0;
+
+  const select = (id: string) => {
+    navigate(`/employees/${id}`);
+    setQuery('');
+    setOpen(false);
+    inputRef.current?.blur();
+  };
+
+  return (
+    <div ref={containerRef} style={{ position: 'relative', marginBottom: 16 }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          height: 32,
+          padding: '0 8px',
+          borderRadius: 6,
+          border: `1px solid ${token('color.border', '#DCDFE4')}`,
+          backgroundColor: token('elevation.surface', '#FFFFFF'),
+        }}
+      >
+        <span style={{ color: token('color.icon.subtle', '#626F86'), display: 'flex' }}>
+          <SearchIcon />
+        </span>
+        <input
+          ref={inputRef}
+          value={query}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setOpen(true);
+          }}
+          onFocus={() => setOpen(true)}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              setQuery('');
+              setOpen(false);
+              inputRef.current?.blur();
+            } else if (e.key === 'Enter' && results.length > 0) {
+              select(results[0].id);
+            }
+          }}
+          placeholder="Search employees…"
+          style={{ flex: 1, minWidth: 0, border: 'none', outline: 'none', fontSize: 13, background: 'transparent', color: token('color.text', '#172B4D') }}
+        />
+        {query.length === 0 && (
+          <kbd
+            style={{
+              fontSize: 11,
+              color: token('color.text.subtlest', '#8590A2'),
+              border: `1px solid ${token('color.border', '#DCDFE4')}`,
+              borderRadius: 3,
+              padding: '1px 4px',
+              fontFamily: 'inherit',
+            }}
+          >
+            ⌘K
+          </kbd>
+        )}
+      </div>
+
+      {showDropdown && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '100%',
+            left: 0,
+            right: 0,
+            marginTop: 4,
+            backgroundColor: token('elevation.surface.overlay', '#FFFFFF'),
+            border: `1px solid ${token('color.border', '#DCDFE4')}`,
+            borderRadius: 6,
+            boxShadow: token('elevation.shadow.overlay', '0 4px 8px rgba(9,30,66,0.15)'),
+            maxHeight: 280,
+            overflowY: 'auto',
+            zIndex: 20,
+          }}
+        >
+          {results.length === 0 ? (
+            <div style={{ padding: '10px 12px', fontSize: 13, color: token('color.text.subtlest', '#8590A2') }}>No employees found.</div>
+          ) : (
+            results.map((e) => <SearchResultRow key={e.id} name={e.legal_name} code={e.employee_code} onSelect={() => select(e.id)} />)
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SearchResultRow({ name, code, onSelect }: { name: string; code: string; onSelect: () => void }) {
+  const { hovered, onMouseEnter, onMouseLeave } = useHover();
+  return (
+    <div
+      onMouseDown={(e) => {
+        e.preventDefault();
+        onSelect();
+      }}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+      style={{
+        padding: '8px 12px',
+        cursor: 'pointer',
+        backgroundColor: hovered ? token('color.background.neutral.subtle.hovered', '#F1F2F4') : 'transparent',
+      }}
+    >
+      <div style={{ color: token('color.text', '#172B4D'), fontWeight: 500, fontSize: 13 }}>{name}</div>
+      <div style={{ color: token('color.text.subtlest', '#8590A2'), fontSize: 12 }}>{code}</div>
+    </div>
+  );
+}
 
 // Static path -> label map, not React Router's `handle`/`useMatches` — this app uses the
 // classic <BrowserRouter> + <Routes> API, and useMatches() only works with the "data router"
@@ -102,34 +302,46 @@ export default function AppShell() {
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
-      <aside style={{ width: 220, flexShrink: 0, borderRight: '1px solid #DCDFE4', padding: 16 }}>
-        <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 24 }}>HRMS</div>
+      <aside
+        style={{
+          width: 232,
+          flexShrink: 0,
+          borderRight: `1px solid ${token('color.border', '#DCDFE4')}`,
+          backgroundColor: token('elevation.surface.sunken', '#F7F8F9'),
+          padding: 16,
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
+          <div
+            style={{
+              width: 24,
+              height: 24,
+              borderRadius: 6,
+              backgroundColor: token('color.background.brand.bold', '#0C66E4'),
+              color: token('color.text.inverse', '#FFFFFF'),
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 13,
+              fontWeight: 700,
+              flexShrink: 0,
+            }}
+          >
+            H
+          </div>
+          <span style={{ fontWeight: 700, fontSize: 15, color: token('color.text', '#172B4D') }}>HRMS</span>
+        </div>
+
+        <SidebarSearch />
+
         <nav style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           {navItems
             .filter((item) => !item.adminOnly || role === 'admin')
-            .map((item) => {
-              const Icon = item.icon;
-              return (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  style={({ isActive }) => ({
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    padding: '6px 8px',
-                    borderRadius: 4,
-                    textDecoration: 'none',
-                    color: isActive ? '#0C66E4' : '#172B4D',
-                    background: isActive ? '#E9F2FF' : 'transparent',
-                    fontWeight: isActive ? 600 : 400,
-                  })}
-                >
-                  <Icon />
-                  {item.label}
-                </NavLink>
-              );
-            })}
+            .map((item) => (
+              <NavItem key={item.to} to={item.to} label={item.label} Icon={item.icon} />
+            ))}
         </nav>
       </aside>
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>

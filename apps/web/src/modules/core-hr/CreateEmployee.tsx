@@ -86,6 +86,13 @@ const STEPS = [
 
 const stepDescriptionStyle = { color: '#44546F', fontSize: 14, marginTop: 4, marginBottom: 24 };
 const actionsRowStyle = { marginTop: 24, display: 'flex', gap: 8 };
+// A single-column form where every field stretches to the full 864px page width reads as
+// unfinished, not spacious — real SaaS forms (Attio, Linear) cap field width and pair short
+// fields side by side instead. 640px / 2 columns keeps each field a sane ~300px, still well
+// short of the page's own max-width, with `full` reserved for fields worth their own row
+// (just the name — everything else here is short enough to pair).
+const formGridStyle = { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', columnGap: 24, maxWidth: 640 };
+const fullWidthFieldStyle = { gridColumn: '1 / -1' };
 
 interface PersonalContactFormData {
   legalName: string;
@@ -112,26 +119,32 @@ function PersonalContactStep({
         {({ formProps }) => (
           <form {...formProps}>
             <FormSection title="Personal">
-              <Field name="legalName" label="Full legal name" isRequired defaultValue={data.legalName}>
-                {({ fieldProps }) => <TextField {...fieldProps} autoFocus />}
-              </Field>
-              <Field name="dateOfBirth" label="Date of birth" defaultValue={data.dateOfBirth}>
-                {({ fieldProps }) => <TextField {...fieldProps} type="date" />}
-              </Field>
-              <Field name="gender" label="Gender" defaultValue={data.gender}>
-                {({ fieldProps }) => <TextField {...fieldProps} />}
-              </Field>
-              <Field name="panNumber" label="PAN" defaultValue={data.panNumber}>
-                {({ fieldProps }) => <TextField {...fieldProps} />}
-              </Field>
+              <div style={formGridStyle}>
+                <div style={fullWidthFieldStyle}>
+                  <Field name="legalName" label="Full legal name" isRequired defaultValue={data.legalName}>
+                    {({ fieldProps }) => <TextField {...fieldProps} autoFocus />}
+                  </Field>
+                </div>
+                <Field name="dateOfBirth" label="Date of birth" defaultValue={data.dateOfBirth}>
+                  {({ fieldProps }) => <TextField {...fieldProps} type="date" />}
+                </Field>
+                <Field name="gender" label="Gender" defaultValue={data.gender}>
+                  {({ fieldProps }) => <TextField {...fieldProps} />}
+                </Field>
+                <Field name="panNumber" label="PAN" defaultValue={data.panNumber}>
+                  {({ fieldProps }) => <TextField {...fieldProps} />}
+                </Field>
+              </div>
             </FormSection>
             <FormSection title="Contact">
-              <Field name="personalEmail" label="Personal email" defaultValue={data.personalEmail}>
-                {({ fieldProps }) => <TextField {...fieldProps} type="email" />}
-              </Field>
-              <Field name="personalPhone" label="Personal phone" defaultValue={data.personalPhone}>
-                {({ fieldProps }) => <TextField {...fieldProps} />}
-              </Field>
+              <div style={formGridStyle}>
+                <Field name="personalEmail" label="Personal email" defaultValue={data.personalEmail}>
+                  {({ fieldProps }) => <TextField {...fieldProps} type="email" />}
+                </Field>
+                <Field name="personalPhone" label="Personal phone" defaultValue={data.personalPhone}>
+                  {({ fieldProps }) => <TextField {...fieldProps} />}
+                </Field>
+              </div>
             </FormSection>
             <div style={actionsRowStyle}>
               <Button type="submit" appearance="primary">
@@ -181,6 +194,7 @@ function WorkInformationStep({
         {({ formProps }) => (
           <form {...formProps}>
             <FormSection>
+              <div style={formGridStyle}>
               <Field name="joiningDate" label="Joining date" isRequired defaultValue={data.joiningDate}>
                 {({ fieldProps }) => <TextField {...fieldProps} type="date" autoFocus />}
               </Field>
@@ -235,6 +249,7 @@ function WorkInformationStep({
                   </SelectField>
                 )}
               </Field>
+              </div>
             </FormSection>
             <div style={actionsRowStyle}>
               <Button appearance="subtle" onClick={onBack}>
