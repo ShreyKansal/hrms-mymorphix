@@ -53,6 +53,19 @@ controlled props, the header's sort arrow never updates and a second click doesn
 direction — DynamicTable has no way to know a column is "already sorted, so toggle" unless you
 tell it back. A decorative sort arrow that doesn't actually toggle is worse than no arrow.
 
+**Row checkboxes need a real bulk action behind them, chosen for what's actually achievable —
+not the whole reference's action set.** The Qubit benchmark table has selection checkboxes;
+`EmployeeDirectory.tsx` now does too, but wired to exactly one real action (CSV export of the
+selected rows, client-side, no new backend surface or write-permission questions) rather than
+every bulk action a full CRM might have. A bulk *status* change was the other candidate and was
+deliberately not built this pass — it's a real write path with real permission questions
+(should a non-admin be able to bulk-change status?) that deserves its own consideration, not a
+rushed add-on to a table-polish pass. Checkboxes with nothing real behind them would be
+decoration; add the next bulk action when it's actually been thought through, not just to match
+a reference pixel-for-pixel. Tags (the reference's colored pill labels) are skipped entirely
+for the same reason from the other direction — there's no tags data model in this schema at
+all, so building the UI for it would be decoration with literally nothing behind it.
+
 ## 2. Modal vs. inline form vs. full page / wizard
 
 **Revised after actual research, not just precedent** — the original version of this section
@@ -114,15 +127,21 @@ Navigation lives in two places, not per-page:
   just an active-state highlight; a sidebar item that doesn't react to a pointer over it reads
   as static chrome, not an interactive control, in every reference product checked (ClickUp,
   Attio, Qubit).
-- **Sidebar search** (`SidebarSearch` in `AppShell.tsx`) — every competitor benchmark (ClickUp,
-  Attio) puts a real search box at the top of the sidebar, not just a global omnisearch buried
-  in a command palette. `Cmd/Ctrl+K` focuses it from anywhere (the shortcut every one of those
-  products trains users to reach for), `Escape` clears it, outside-click closes the results
-  dropdown. **Scoped to Employees today, deliberately** — that's the one module with a real,
-  populated dataset; a search box that also claims to search Departments/Documents/whatever
-  before those have real content behind them would be decoration, not a feature. Extend the
-  scope in `SidebarSearch` as more modules get real, searchable data — don't build a fake
-  all-modules search box ahead of that.
+- **Sidebar search → centered command palette** (`SearchTrigger` + `CommandPalette` in
+  `src/lib/`). **Got this wrong on the first pass** — the first version was a small dropdown
+  that live-filtered directly under the sidebar input. That's not the actual pattern in any of
+  the reference products (ClickUp, Attio, Linear): the sidebar element is a *trigger*, not the
+  search surface itself. Researched properly before rebuilding (uxpatterns.dev's command-
+  palette pattern, Linear/Vercel-style Cmd+K writeups — see Sources): the real pattern is a
+  centered modal with its own backdrop, a large input, keyboard-first interaction (arrow keys +
+  Enter, not just typing + click), and a labeled idle state before the user types anything, not
+  a blank box. `CommandPalette.tsx` implements exactly that — `Cmd/Ctrl+K` toggles it from
+  anywhere (`useCommandPaletteHotkey`), `Escape`/outside-click closes it, arrow keys move
+  through results, Enter selects. **Scoped to Employees today, deliberately** — that's the one
+  module with a real, populated dataset; a palette that also claims to search Departments/
+  Documents/whatever before those have real content behind them would be decoration wearing
+  the shape of a feature. Extend the scope in `CommandPalette.tsx` as more modules get real,
+  searchable data.
 - **Breadcrumb trail** (`AppShell.tsx`'s header, top bar) — one horizontal trail showing where
   the current page sits, in the Supabase/Jira-dashboard style (`Employees / Jane Doe`), not a
   link buried in the page body. Static routes get a one-word label from a lookup map
@@ -226,17 +245,31 @@ never a deliberate choice, just what `FormSection`'s own default layout does if 
 
 ## 8. Status and category labels
 
-`@atlaskit/lozenge` for any short status/role/category tag. Current appearance convention:
+**Two patterns now, for two different jobs — not a contradiction, a deliberate split:**
+
+`@atlaskit/lozenge` for a **read-only** short status/role/category tag, shown where the record
+isn't the thing being acted on right now (a header, a secondary column, another table's
+"current" marker):
 
 | Meaning | Appearance |
 |---|---|
 | Active / current / admin (positive, "this is the good state") | `success` |
 | Draft / other / employee / default state | `default` (or omitted — same visual) |
 
-Only two states have been needed so far (`EmployeeDirectory.tsx`'s status Lozenge,
-`Team.tsx`'s role Lozenge, `EmploymentTab.tsx`'s "current" marker). Extend this table when a
-module needs more — e.g. a `warning`/`removed` appearance for `suspended`/`separated` employee
-statuses — rather than picking an appearance ad hoc per screen.
+Today: `EmployeeDetail.tsx`'s header status, `Team.tsx`'s role Lozenge, `EmploymentTab.tsx`'s
+"current" marker. Extend this table when a module needs more appearances (e.g. `warning`/
+`removed` for `suspended`/`separated`) rather than picking one ad hoc per screen.
+
+**Colored dot + text, inline-editable**, for status specifically inside a primary
+DynamicTable's own rows (`StatusCell` in `EmployeeDirectory.tsx`) — the Qubit benchmark this
+was checked against treats status as something you act on from the list itself, not just read;
+a click swaps the dot+text for a real `<select>`, saves on change, and refreshes explicitly
+(don't rely on Realtime's round-trip to reflect a change the user just made — see that
+component's comment for why waiting on it was briefly a real bug: the row could show the old
+status for a beat after a save that had already succeeded). Admin-gated the same way every
+other write action in this app is. Don't reach for this pattern outside a primary list's own
+status column — a header or a secondary embedded table isn't "the list," Lozenge is still
+correct there.
 
 ## 9. Page container width
 
@@ -248,15 +281,18 @@ statuses — rather than picking an appearance ad hoc per screen.
 
 Both use `margin: '0 auto'` to center within the (already-narrower) `AppShell` main content area.
 
-**Detail-page headers get an avatar, not just stacked text.** Found missing on Employee Detail
-— a record-detail page with just a name and a status line, no visual anchor, reads as a plain
-document rather than a person's profile (every reference product puts a face/initials circle at
-the top of a person-record page). Pattern: `initials()` + a small fixed palette
-(`AVATAR_COLORS` in `EmployeeDetail.tsx`) hashed from the record's name, so the same person
-always gets the same color without needing a real photo-upload feature to back it — that's real,
-separate scope (a `documents`-style upload wired specifically to a profile-photo field), not
-something to half-build as a placeholder here. Apply the same pattern to the next
-person-or-org-record detail page this app grows (e.g. a future Vendor/Candidate detail page).
+**Detail pages and primary-table rows both get an avatar, not just text.** Found missing on
+Employee Detail — a record-detail page with just a name and a status line, no visual anchor,
+reads as a plain document rather than a person's profile (every reference product puts a face/
+initials circle at the top of a person-record page, and a small one in front of the name in any
+list of people). Shared pattern, not duplicated per screen: `initials()` + `avatarColor()` in
+`src/lib/avatar.ts` — a small fixed color palette hashed from the record's name, so the same
+person always gets the same color without needing a real photo-upload feature to back it (that's
+real, separate scope — a `documents`-style upload wired specifically to a profile-photo field —
+not something to half-build as a placeholder here). `EmployeeDetail.tsx` uses it at 56px in the
+header, `EmployeeDirectory.tsx`'s `NameCell` at 22px per row. Apply the same shared helpers to
+the next person-or-org-record page/list this app grows (e.g. a future Vendor/Candidate module),
+not a third copy of the hashing logic.
 
 ## 10. Module folder structure
 
@@ -276,3 +312,9 @@ External research behind §2 (Modal/Page/Wizard) and the spacing-scale numbers i
 - 4/8pt spacing grid (§5) and the typography-scale framing (§4) are standard, widely-used
   conventions in production design systems (not attributed to a single source) — verified against
   this codebase's actual usage before being written down, not applied blind.
+
+Behind §3's command palette (`CommandPalette.tsx`) — the rebuild after the first version (a
+sidebar dropdown) turned out not to match the actual pattern in any real reference product:
+
+- [uxpatterns.dev — Command Palette Pattern](https://uxpatterns.dev/patterns/advanced/command-palette) — trigger mechanism, centered-overlay layout, grouped results, full keyboard operability, and the specific anti-pattern (designing only the happy path — no empty/loading state) this doc's own "All employees" idle state exists to avoid.
+- General Cmd+K / command-palette convention (Linear, Vercel, GitHub, Raycast) — centered modal with backdrop, ⌘K to open, arrow keys + Enter to navigate/select, Esc to close; consistent across every writeup checked, not one outlier's opinion.

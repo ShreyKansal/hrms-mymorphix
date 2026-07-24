@@ -28,7 +28,7 @@ All tables have RLS enabled with a uniform `tenant_isolation` policy (`tenant_id
 
 Source: [`apps/web/src/modules/core-hr/`](../../../apps/web/src/modules/core-hr/).
 
-1. **Employee Directory** (`EmployeeDirectory.tsx`) — built. `@atlaskit/dynamic-table`, columns: name/code/designation/department/status, a Recharts headcount-by-status bar chart. Click a row → detail page. No search/filter yet (PRD calls for it; not built).
+1. **Employee Directory** (`EmployeeDirectory.tsx`) — built. `@atlaskit/dynamic-table`, columns: select/name (with a small avatar)/code/designation/department/status, all real-sorted (client-side, controlled `sortKey`/`sortOrder`). Client-side text filter above the table (name/code/designation/department). Row checkboxes wired to one real bulk action — CSV export of the selected rows — not decorative selection with nothing behind it. Status is a colored dot, inline-editable (click → real `<select>`, saves immediately, admin-gated) rather than a static badge — see [`03-ui-patterns.md`](../03-ui-patterns.md) §8 for when to use this vs. a read-only Lozenge. A Recharts headcount-by-status bar chart. Click a row (or its avatar/name) → detail page. Directory-wide search across pages lives in the sidebar's Cmd+K command palette (`CommandPalette.tsx`), not a second search box on this page.
 
 2. **Employee Detail** (`EmployeeDetail.tsx` + `ProfileTab.tsx` + `EmploymentTab.tsx`) — tabs, built vs. not:
    - **Profile** (`ProfileTab.tsx`) — built: personal info + contact (view/edit), Education (list + add), Previous Employment (list + add). **Not built:** emergency contacts, dependants, nominees, skills, certifications — no backing tables yet.

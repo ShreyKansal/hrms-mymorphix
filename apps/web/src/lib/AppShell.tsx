@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
-import { NavLink, Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { NavLink, Link, Outlet, useLocation } from 'react-router-dom';
 import Button from '@atlaskit/button/new';
 import { token } from '@atlaskit/tokens';
 import { useAuthStore } from '../modules/auth/store';
-import { useEmployeesStore } from '../modules/core-hr/store';
 import { usePageTitleStore } from './pageTitleStore';
+import { CommandPalette, useCommandPaletteHotkey } from './CommandPalette';
 
 // Inlined rather than imported from @atlaskit/icon/glyph/*: this Vite/Rolldown version's CJS
 // interop for those deep subpath imports wraps the default export incorrectly (the module's
@@ -92,159 +92,51 @@ function NavItem({ to, label, Icon }: { to: string; label: string; Icon: () => J
   );
 }
 
-// Employees is the one module with a real, populated directory today — scoped here
-// deliberately rather than a fake omnisearch box that returns nothing for departments/docs
-// that don't have real searchable data yet. Extend the search scope as more modules do.
-function SidebarSearch() {
-  const navigate = useNavigate();
-  const { employees, fetchEmployees } = useEmployeesStore();
-  const [query, setQuery] = useState('');
-  const [open, setOpen] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    fetchEmployees();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Cmd/Ctrl+K jumps to the search box from anywhere in the app, matching the shortcut every
-  // reference product (ClickUp, Attio) trains users to expect for this exact control.
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault();
-        inputRef.current?.focus();
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, []);
-
-  // A plain onBlur would fire before a result's onClick (blur-before-click ordering) and drop
-  // the click; listening for outside mousedown on the document sidesteps that race, same
-  // pattern real component libraries use for this exact problem.
-  useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, []);
-
-  const trimmed = query.trim().toLowerCase();
-  const results = trimmed
-    ? employees.filter((e) => e.legal_name.toLowerCase().includes(trimmed) || e.employee_code.toLowerCase().includes(trimmed)).slice(0, 8)
-    : [];
-  const showDropdown = open && trimmed.length > 0;
-
-  const select = (id: string) => {
-    navigate(`/employees/${id}`);
-    setQuery('');
-    setOpen(false);
-    inputRef.current?.blur();
-  };
-
-  return (
-    <div ref={containerRef} style={{ position: 'relative', marginBottom: 16 }}>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 6,
-          height: 32,
-          padding: '0 8px',
-          borderRadius: 6,
-          border: `1px solid ${token('color.border', '#DCDFE4')}`,
-          backgroundColor: token('elevation.surface', '#FFFFFF'),
-        }}
-      >
-        <span style={{ color: token('color.icon.subtle', '#626F86'), display: 'flex' }}>
-          <SearchIcon />
-        </span>
-        <input
-          ref={inputRef}
-          value={query}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            setOpen(true);
-          }}
-          onFocus={() => setOpen(true)}
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') {
-              setQuery('');
-              setOpen(false);
-              inputRef.current?.blur();
-            } else if (e.key === 'Enter' && results.length > 0) {
-              select(results[0].id);
-            }
-          }}
-          placeholder="Search employees…"
-          style={{ flex: 1, minWidth: 0, border: 'none', outline: 'none', fontSize: 13, background: 'transparent', color: token('color.text', '#172B4D') }}
-        />
-        {query.length === 0 && (
-          <kbd
-            style={{
-              fontSize: 11,
-              color: token('color.text.subtlest', '#8590A2'),
-              border: `1px solid ${token('color.border', '#DCDFE4')}`,
-              borderRadius: 3,
-              padding: '1px 4px',
-              fontFamily: 'inherit',
-            }}
-          >
-            ⌘K
-          </kbd>
-        )}
-      </div>
-
-      {showDropdown && (
-        <div
-          style={{
-            position: 'absolute',
-            top: '100%',
-            left: 0,
-            right: 0,
-            marginTop: 4,
-            backgroundColor: token('elevation.surface.overlay', '#FFFFFF'),
-            border: `1px solid ${token('color.border', '#DCDFE4')}`,
-            borderRadius: 6,
-            boxShadow: token('elevation.shadow.overlay', '0 4px 8px rgba(9,30,66,0.15)'),
-            maxHeight: 280,
-            overflowY: 'auto',
-            zIndex: 20,
-          }}
-        >
-          {results.length === 0 ? (
-            <div style={{ padding: '10px 12px', fontSize: 13, color: token('color.text.subtlest', '#8590A2') }}>No employees found.</div>
-          ) : (
-            results.map((e) => <SearchResultRow key={e.id} name={e.legal_name} code={e.employee_code} onSelect={() => select(e.id)} />)
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function SearchResultRow({ name, code, onSelect }: { name: string; code: string; onSelect: () => void }) {
+// A trigger, not a live-filtering input in place — the actual search UI is the centered
+// CommandPalette modal (see that file's comment for why the first version of this, an
+// under-the-input dropdown, wasn't the right pattern at all). This button just looks like a
+// search field and opens it, matching how ClickUp/Attio/Linear's own sidebar search entries
+// work — clicking (or Cmd/Ctrl+K) opens the palette; nothing is typed here directly.
+function SearchTrigger({ onOpen }: { onOpen: () => void }) {
   const { hovered, onMouseEnter, onMouseLeave } = useHover();
   return (
-    <div
-      onMouseDown={(e) => {
-        e.preventDefault();
-        onSelect();
-      }}
+    <button
+      onClick={onOpen}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       style={{
-        padding: '8px 12px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 6,
+        height: 32,
+        padding: '0 8px',
+        marginBottom: 16,
+        borderRadius: 6,
+        border: `1px solid ${token('color.border', '#DCDFE4')}`,
+        backgroundColor: hovered ? token('color.background.neutral.subtle.hovered', '#F1F2F4') : token('elevation.surface', '#FFFFFF'),
         cursor: 'pointer',
-        backgroundColor: hovered ? token('color.background.neutral.subtle.hovered', '#F1F2F4') : 'transparent',
+        width: '100%',
+        textAlign: 'left',
+        font: 'inherit',
       }}
     >
-      <div style={{ color: token('color.text', '#172B4D'), fontWeight: 500, fontSize: 13 }}>{name}</div>
-      <div style={{ color: token('color.text.subtlest', '#8590A2'), fontSize: 12 }}>{code}</div>
-    </div>
+      <span style={{ color: token('color.icon.subtle', '#626F86'), display: 'flex' }}>
+        <SearchIcon />
+      </span>
+      <span style={{ flex: 1, fontSize: 13, color: token('color.text.subtlest', '#8590A2') }}>Search employees…</span>
+      <kbd
+        style={{
+          fontSize: 11,
+          color: token('color.text.subtlest', '#8590A2'),
+          border: `1px solid ${token('color.border', '#DCDFE4')}`,
+          borderRadius: 3,
+          padding: '1px 4px',
+          fontFamily: 'inherit',
+        }}
+      >
+        ⌘K
+      </kbd>
+    </button>
   );
 }
 
@@ -299,9 +191,12 @@ function Breadcrumbs() {
 export default function AppShell() {
   const signOut = useAuthStore((s) => s.signOut);
   const role = useAuthStore((s) => s.role);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  useCommandPaletteHotkey(() => setPaletteOpen((o) => !o));
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
+      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
       <aside
         style={{
           width: 232,
@@ -334,7 +229,7 @@ export default function AppShell() {
           <span style={{ fontWeight: 700, fontSize: 15, color: token('color.text', '#172B4D') }}>HRMS</span>
         </div>
 
-        <SidebarSearch />
+        <SearchTrigger onOpen={() => setPaletteOpen(true)} />
 
         <nav style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           {navItems

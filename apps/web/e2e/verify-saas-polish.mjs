@@ -89,20 +89,14 @@ try {
   await createEmployeeQuick('Bilal Khan', '2026-02-20');
   await createEmployeeQuick('Chetan Rao', '2026-03-05');
 
-  // --- Sidebar search ---
+  // Sidebar search itself (trigger -> centered command palette, keyboard nav) is covered by
+  // verify-command-palette-and-table.mjs — not duplicated here.
   await page.goto(`${BASE_URL}/employees`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(500);
   await page.screenshot({ path: join(outDir, 'after-directory-table.png'), fullPage: true });
 
-  const searchBox = page.getByPlaceholder('Search employees…');
-  assert((await searchBox.count()) > 0, 'sidebar search input renders');
-  await searchBox.fill('Bilal');
-  await page.waitForTimeout(300);
-  await page.screenshot({ path: join(outDir, 'after-sidebar-search-open.png'), fullPage: true });
-  assert((await page.getByText('Bilal Khan').count()) > 0, 'typing a name shows a matching result in the dropdown');
-  await page.getByText('Bilal Khan').first().click();
-  await page.waitForTimeout(800);
-  assert(page.url().includes(employeeIds[1]) || (await page.locator('body').textContent())?.includes('Bilal Khan'), 'clicking a search result navigates to that employee');
+  await page.goto(`${BASE_URL}/employees/${employeeIds[1]}`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(500);
 
   // --- Detail page avatar ---
   await page.screenshot({ path: join(outDir, 'after-detail-avatar.png'), fullPage: true });
