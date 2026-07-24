@@ -3,8 +3,8 @@ import Button from '@atlaskit/button/new';
 import Form, { Field, FormSection, ErrorMessage, MessageWrapper } from '@atlaskit/form';
 import TextField from '@atlaskit/textfield';
 import Modal, { ModalBody, ModalFooter, ModalHeader, ModalTitle, ModalTransition } from '@atlaskit/modal-dialog';
-import { useAuthStore } from '../store/authStore';
-import { useEmployeesStore } from '../store/employeesStore';
+import { useAuthStore } from '../auth/store';
+import { useEmployeesStore } from './store';
 
 interface FormData {
   legalName: string;

@@ -4,7 +4,7 @@ import Button from '@atlaskit/button/new';
 import Form, { Field, FormFooter, FormHeader, FormSection } from '@atlaskit/form';
 import TextField from '@atlaskit/textfield';
 import Heading from '@atlaskit/heading';
-import { useAuthStore } from '../store/authStore';
+import { useAuthStore } from './store';
 
 // The minimal setup wizard from docs/build/build-guides/22-system-administration.md —
 // "a brand-new small customer should be able to finish setup in a few minutes." Now calls

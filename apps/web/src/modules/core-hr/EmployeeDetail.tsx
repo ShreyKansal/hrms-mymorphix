@@ -6,8 +6,8 @@ import Button from '@atlaskit/button/new';
 import Tabs, { Tab, TabList, TabPanel } from '@atlaskit/tabs';
 import Form, { Field, FormSection, ErrorMessage, MessageWrapper } from '@atlaskit/form';
 import TextField from '@atlaskit/textfield';
-import { supabase } from '../lib/supabase';
-import type { Employee, EmploymentAssignment } from '../lib/database.types';
+import { supabase } from '../../lib/supabase';
+import type { Employee, EmploymentAssignment } from '../../lib/database.types';
 
 const labelStyle = { color: '#626F86', fontSize: 12, fontWeight: 600, marginTop: 12 };
 const valueStyle = { margin: '2px 0 0' };

@@ -4,7 +4,7 @@ import Button from '@atlaskit/button/new';
 import Form, { Field, FormFooter, FormSection, HelperMessage } from '@atlaskit/form';
 import TextField from '@atlaskit/textfield';
 import Heading from '@atlaskit/heading';
-import { useAuthStore } from '../store/authStore';
+import { useAuthStore } from './store';
 
 interface FormData {
   email: string;

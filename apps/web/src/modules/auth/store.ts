@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { Session } from '@supabase/supabase-js';
-import { supabase } from '../lib/supabase';
+import { supabase } from '../../lib/supabase';
 
 // Replaces the old Sprint-1 stand-in (a raw tenant ID kept in localStorage, sent as an
 // x-tenant-id header — see the removed apps/api/src/common/tenant-id.decorator.ts). Real

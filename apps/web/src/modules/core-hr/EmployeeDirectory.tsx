@@ -5,7 +5,7 @@ import DynamicTable from '@atlaskit/dynamic-table';
 import Heading from '@atlaskit/heading';
 import Lozenge from '@atlaskit/lozenge';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
-import { useEmployeesStore } from '../store/employeesStore';
+import { useEmployeesStore } from './store';
 import CreateEmployeeModal from './CreateEmployeeModal';
 
 // docs/build/build-guides/01-core-hr-employee-information.md screen #1 —

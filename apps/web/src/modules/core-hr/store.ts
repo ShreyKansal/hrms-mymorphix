@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { RealtimeChannel } from '@supabase/supabase-js';
-import { supabase } from '../lib/supabase';
-import type { Employee, EmploymentAssignment } from '../lib/database.types';
+import { supabase } from '../../lib/supabase';
+import type { Employee, EmploymentAssignment } from '../../lib/database.types';
 
 export interface EmployeeWithCurrentAssignment extends Employee {
   employment_assignments: EmploymentAssignment[];

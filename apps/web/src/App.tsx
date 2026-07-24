@@ -1,11 +1,11 @@
 import type { ReactNode } from 'react';
 import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { useAuthStore } from './store/authStore';
-import Auth from './pages/Auth';
-import TenantSetup from './pages/TenantSetup';
-import EmployeeDirectory from './pages/EmployeeDirectory';
-import EmployeeDetail from './pages/EmployeeDetail';
+import { useAuthStore } from './modules/auth/store';
+import Auth from './modules/auth/Auth';
+import TenantSetup from './modules/auth/TenantSetup';
+import EmployeeDirectory from './modules/core-hr/EmployeeDirectory';
+import EmployeeDetail from './modules/core-hr/EmployeeDetail';
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { session, loading } = useAuthStore();
