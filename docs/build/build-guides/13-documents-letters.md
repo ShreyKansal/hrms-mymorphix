@@ -2,6 +2,9 @@
 
 **Full spec:** [modules/13-documents-letters.md](../../hrms-prd/modules/13-documents-letters.md)
 **Phase:** HR Operations. Other modules (Onboarding, Payroll, Separation) call into this one — build it before those need it, or stub it early and fill in.
+**Status:** First slice built — raw document storage + preview only (item 1 below, "Document Repository"). Everything else on this page (template management, template-driven generation, versioning, e-signature) is **not built** and depends on Module 17 (Workflow Engine, for approval routing) and Module 23 (e-signature), neither of which exist yet. Don't assume the rest of this guide reflects working code.
+
+**What actually exists:** `supabase/migrations/20260724040000_documents_storage.sql` (private Storage bucket + tenant-scoped RLS on `storage.objects`, a `documents` metadata table) and [`apps/web/src/modules/core-hr/DocumentsTab.tsx`](../../../apps/web/src/modules/core-hr/DocumentsTab.tsx) (upload with a category, list, "View" via a short-lived signed URL opened in a new tab — real preview for anything the browser renders natively, no embedded viewer). No REST API — direct `supabase-js` calls, RLS-authorized, same pattern as every other single-table CRUD screen in this project (see Module 1's build guide for the fuller explanation of that split).
 
 ---
 

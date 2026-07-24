@@ -34,7 +34,8 @@ Source: [`apps/web/src/modules/core-hr/`](../../../apps/web/src/modules/core-hr/
    - **Profile** (`ProfileTab.tsx`) — built: personal info + contact (view/edit), Education (list + add), Previous Employment (list + add). **Not built:** emergency contacts, dependants, nominees, skills, certifications — no backing tables yet.
    - **Employment** (`EmploymentTab.tsx`) — built: current assignment card (department/designation/grade/reports-to/employment type/since), full history table, "Transfer" action.
    - **Compensation** — not built (no RPC, no UI; also depends on Module 21 permission-gating, which doesn't exist).
-   - **Documents**, **Assets** — not built (Module 13/14 don't exist).
+   - **Documents** (`DocumentsTab.tsx`) — built: upload + list + preview (signed URL, opened in a new tab) against a private Supabase Storage bucket. See Module 13's build guide — this is that module's first slice, not a full Module 1 feature; template-driven letter generation is separate and not built.
+   - **Assets** — not built (Module 14 doesn't exist).
    - **Timeline** (unified audit feed) — not built (no audit-log table yet).
 
 3. **Create Employee** (`CreateEmployeeModal.tsx`) — built. Modal, `@atlaskit/form`. Fields: legal name, personal email, joining date, department/designation/grade/manager (all optional pickers, sourced from `org-management`'s store and the employees list). Calls the `create_employee()` Postgres function.
