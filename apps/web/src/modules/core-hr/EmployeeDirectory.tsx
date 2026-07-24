@@ -5,6 +5,7 @@ import DynamicTable from '@atlaskit/dynamic-table';
 import Heading from '@atlaskit/heading';
 import Lozenge from '@atlaskit/lozenge';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
+import { useAuthStore } from '../auth/store';
 import { useEmployeesStore } from './store';
 import CreateEmployeeModal from './CreateEmployeeModal';
 
@@ -14,6 +15,7 @@ import CreateEmployeeModal from './CreateEmployeeModal';
 // the list updates live on any insert/update to this tenant's employees, from any tab.
 export default function EmployeeDirectory() {
   const [isCreateOpen, setCreateOpen] = useState(false);
+  const role = useAuthStore((s) => s.role);
   const { employees, loading, error, fetchEmployees, subscribeToChanges, unsubscribe } = useEmployeesStore();
 
   useEffect(() => {
@@ -64,9 +66,11 @@ export default function EmployeeDirectory() {
     <div style={{ maxWidth: 1296, margin: '0 auto', padding: 24 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <Heading size="large">Employee Directory</Heading>
-        <Button appearance="primary" onClick={() => setCreateOpen(true)}>
-          Add employee
-        </Button>
+        {role === 'admin' && (
+          <Button appearance="primary" onClick={() => setCreateOpen(true)}>
+            Add employee
+          </Button>
+        )}
       </div>
 
       {error && <p style={{ color: 'red' }}>Could not load employees: {error}</p>}

@@ -8,6 +8,7 @@ import EmployeeDirectory from './modules/core-hr/EmployeeDirectory';
 import EmployeeDetail from './modules/core-hr/EmployeeDetail';
 import OrgChart from './modules/core-hr/OrgChart';
 import OrgManagement from './modules/org-management/OrgManagement';
+import Team from './modules/roles-permissions/Team';
 import AppShell from './lib/AppShell';
 
 function RequireAuth({ children }: { children: ReactNode }) {
@@ -57,6 +58,7 @@ export default function App() {
           <Route path="/employees/:id" element={<EmployeeDetail />} />
           <Route path="/organisation" element={<OrgManagement />} />
           <Route path="/org-chart" element={<OrgChart />} />
+          <Route path="/team" element={<Team />} />
         </Route>
         <Route
           path="*"

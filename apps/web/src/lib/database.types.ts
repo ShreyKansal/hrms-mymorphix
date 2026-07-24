@@ -71,6 +71,18 @@ export type Profile = {
   id: string;
   tenant_id: string | null;
   employee_id: string | null;
+  role: 'admin' | 'employee';
+  email: string | null;
+};
+
+export type Invitation = {
+  id: string;
+  tenant_id: string;
+  email: string;
+  role: 'admin' | 'employee';
+  invited_by: string | null;
+  created_at: string;
+  accepted_at: string | null;
 };
 
 export type Department = {
@@ -307,8 +319,42 @@ export type Database = {
       };
       profiles: {
         Row: Profile;
-        Insert: { id: string; tenant_id?: string | null; employee_id?: string | null };
-        Update: { id?: string; tenant_id?: string | null; employee_id?: string | null };
+        Insert: {
+          id: string;
+          tenant_id?: string | null;
+          employee_id?: string | null;
+          role?: 'admin' | 'employee';
+          email?: string | null;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string | null;
+          employee_id?: string | null;
+          role?: 'admin' | 'employee';
+          email?: string | null;
+        };
+        Relationships: [];
+      };
+      invitations: {
+        Row: Invitation;
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          email: string;
+          role?: 'admin' | 'employee';
+          invited_by?: string | null;
+          created_at?: string;
+          accepted_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string;
+          email?: string;
+          role?: 'admin' | 'employee';
+          invited_by?: string | null;
+          created_at?: string;
+          accepted_at?: string | null;
+        };
         Relationships: [];
       };
       employee_education: {
@@ -419,6 +465,14 @@ export type Database = {
           p_employment_type?: string | null;
         };
         Returns: EmploymentAssignment;
+      };
+      invite_user: {
+        Args: { p_email: string; p_role?: 'admin' | 'employee' };
+        Returns: Invitation;
+      };
+      accept_pending_invitation: {
+        Args: Record<string, never>;
+        Returns: { tenant_id: string; role: 'admin' | 'employee' }[];
       };
     };
   };

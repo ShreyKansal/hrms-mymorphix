@@ -4,6 +4,7 @@ import Heading from '@atlaskit/heading';
 import Lozenge from '@atlaskit/lozenge';
 import Button from '@atlaskit/button/new';
 import type { EmploymentAssignment } from '../../lib/database.types';
+import { useAuthStore } from '../auth/store';
 import TransferEmployeeModal from './TransferEmployeeModal';
 
 const labelStyle = { color: '#626F86', fontSize: 12, fontWeight: 600, marginTop: 12 };
@@ -20,12 +21,13 @@ export default function EmploymentTab({
 }) {
   const current = assignments.find((a) => a.effective_to === null);
   const [transferOpen, setTransferOpen] = useState(false);
+  const role = useAuthStore((s) => s.role);
 
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Heading size="small">Current assignment</Heading>
-        <Button onClick={() => setTransferOpen(true)}>Transfer</Button>
+        {role === 'admin' && <Button onClick={() => setTransferOpen(true)}>Transfer</Button>}
       </div>
       {current ? (
         <div style={{ marginBottom: 24 }}>

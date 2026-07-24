@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '@atlaskit/button/new';
 import Form, { Field, FormFooter, FormHeader, FormSection } from '@atlaskit/form';
@@ -12,10 +12,30 @@ import { useAuthStore } from './store';
 // endpoint — see supabase/migrations/20260724010000_foundation_schema.sql for why that
 // function needs elevated privilege: nobody has a tenant_id yet at this point, so normal
 // RLS would otherwise block every insert this flow needs to make.
+//
+// Checks for a pending invitation before rendering the create-company form at all — a user
+// who was invited to an existing tenant should land straight in it, not be offered to create
+// a second, unrelated company by mistake.
 export default function TenantSetup() {
   const navigate = useNavigate();
   const provisionTenant = useAuthStore((s) => s.provisionTenant);
+  const tryAcceptInvitation = useAuthStore((s) => s.tryAcceptInvitation);
+  const [checkingInvitation, setCheckingInvitation] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      const joined = await tryAcceptInvitation();
+      if (joined) {
+        navigate('/employees');
+        return;
+      }
+      setCheckingInvitation(false);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  if (checkingInvitation) return null;
 
   return (
     <div style={{ maxWidth: 480, margin: '80px auto' }}>
