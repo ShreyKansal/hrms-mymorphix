@@ -10,12 +10,13 @@
     "build": "turbo run build",
     "lint": "turbo run lint",
     "test": "turbo run test",
-    "db:migrate": "DATABASE_URL=\"$MIGRATE_DATABASE_URL\" prisma migrate dev --schema prisma/schema.prisma",
-    "db:generate": "prisma generate --schema prisma/schema.prisma",
-    "db:studio": "DATABASE_URL=\"$MIGRATE_DATABASE_URL\" prisma studio --schema prisma/schema.prisma"
+    "db:push": "supabase db push",
+    "db:diff": "supabase db diff -f",
+    "functions:deploy": "supabase functions deploy",
+    "functions:serve": "supabase functions serve"
   },
   "devDependencies": {
-    "prisma": "^6.1.0",
+    "supabase": "^2.0.0",
     "turbo": "^2.3.0",
     "typescript": "^5.7.0"
   },
@@ -24,14 +25,8 @@
     "node": ">=20"
   },
   "allowScripts": {
-    "@prisma/engines@6.19.3": true,
-    "prisma@6.19.3": true,
-    "@prisma/client@6.19.3": true,
-    "unrs-resolver@1.12.2": true,
     "core-js@2.6.12": true,
-    "fsevents@2.3.3": true
-  },
-  "dependencies": {
-    "@prisma/client": "^6.19.3"
+    "fsevents@2.3.3": true,
+    "fsevents@2.3.2": true
   }
 }

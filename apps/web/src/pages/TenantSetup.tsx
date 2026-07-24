@@ -4,15 +4,17 @@ import Button from '@atlaskit/button/new';
 import Form, { Field, FormFooter, FormHeader, FormSection } from '@atlaskit/form';
 import TextField from '@atlaskit/textfield';
 import Heading from '@atlaskit/heading';
-import { api, setCurrentTenantId, setDefaultLegalEntityId } from '../api/client';
-import type { ProvisionTenantResponse } from '../api/types';
+import { useAuthStore } from '../store/authStore';
 
 // The minimal setup wizard from docs/build/build-guides/22-system-administration.md —
-// "a brand-new small customer should be able to finish setup in a few minutes."
-// This IS the bootstrapping flow: nobody has a role to grant before this runs
-// (docs/hrms-prd/modules/21-roles-permissions.md §24).
+// "a brand-new small customer should be able to finish setup in a few minutes." Now calls
+// the provision_tenant() Postgres function (SECURITY DEFINER) instead of a custom API
+// endpoint — see supabase/migrations/20260724010000_foundation_schema.sql for why that
+// function needs elevated privilege: nobody has a tenant_id yet at this point, so normal
+// RLS would otherwise block every insert this flow needs to make.
 export default function TenantSetup() {
   const navigate = useNavigate();
+  const provisionTenant = useAuthStore((s) => s.provisionTenant);
   const [error, setError] = useState<string | null>(null);
 
   return (
@@ -25,14 +27,9 @@ export default function TenantSetup() {
       {error && <p style={{ color: 'red' }}>{error}</p>}
       <Form<{ companyName: string; legalEntityName: string }>
         onSubmit={async (data) => {
-          try {
-            const result = await api.post<ProvisionTenantResponse>('/api/v1/tenants', data);
-            setCurrentTenantId(result.tenant.id);
-            setDefaultLegalEntityId(result.legalEntity.id);
-            navigate('/employees');
-          } catch (e) {
-            setError(e instanceof Error ? e.message : 'Something went wrong');
-          }
+          const { error } = await provisionTenant(data.companyName, data.legalEntityName);
+          if (error) setError(error);
+          else navigate('/employees');
         }}
       >
         {({ formProps }) => (

@@ -3,8 +3,8 @@ import Button from '@atlaskit/button/new';
 import Form, { Field, FormSection, ErrorMessage, MessageWrapper } from '@atlaskit/form';
 import TextField from '@atlaskit/textfield';
 import Modal, { ModalBody, ModalFooter, ModalHeader, ModalTitle, ModalTransition } from '@atlaskit/modal-dialog';
-import { api, getDefaultLegalEntityId, ApiError } from '../api/client';
-import type { Employee } from '../api/types';
+import { useAuthStore } from '../store/authStore';
+import { useEmployeesStore } from '../store/employeesStore';
 
 interface FormData {
   legalName: string;
@@ -13,17 +13,15 @@ interface FormData {
 }
 
 // docs/build/build-guides/01-core-hr-employee-information.md screen #3 — "a focused
-// Modal ... one task per modal" per Atlaskit's own usage guidance
-// (docs/hrms-prd/00-existing-system-audit.md §7).
-export default function CreateEmployeeModal({
-  onClose,
-  onCreated,
-}: {
-  onClose: () => void;
-  onCreated: () => void;
-}) {
+// Modal ... one task per modal" per Atlaskit's own usage guidance.
+// NOTE: <StrictMode> is deliberately not used in main.tsx — @atlaskit/modal-dialog has a
+// genuine bug under React 18 StrictMode (closes itself immediately on open). See
+// docs/build/verification-evidence/README.md Bug 1. Nothing about the Supabase rewrite
+// changes that finding — it's an Atlaskit/React issue, unrelated to the backend.
+export default function CreateEmployeeModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
   const [error, setError] = useState<string | null>(null);
-  const legalEntityId = getDefaultLegalEntityId();
+  const legalEntityId = useAuthStore((s) => s.legalEntityId);
+  const createEmployee = useEmployeesStore((s) => s.createEmployee);
 
   return (
     <ModalTransition>
@@ -34,16 +32,14 @@ export default function CreateEmployeeModal({
               setError('No legal entity found for this workspace — run setup again.');
               return;
             }
-            try {
-              await api.post<Employee>('/api/v1/employees', {
-                ...data,
-                legalEntityId,
-                employmentType: 'Permanent',
-              });
-              onCreated();
-            } catch (e) {
-              setError(e instanceof ApiError ? e.message : 'Could not create employee');
-            }
+            const { error } = await createEmployee({
+              legalEntityId,
+              legalName: data.legalName,
+              joiningDate: data.joiningDate,
+              personalEmail: data.personalEmail,
+            });
+            if (error) setError(error);
+            else onCreated();
           }}
         >
           {({ formProps }) => (

@@ -19,7 +19,9 @@
     "@atlaskit/modal-dialog": "^13.0.0",
     "@atlaskit/textfield": "^7.0.0",
     "@atlaskit/tokens": "^4.0.0",
-    "@tanstack/react-query": "^5.62.0",
+    "@supabase/supabase-js": "^2.45.0",
+    "zustand": "^5.0.0",
+    "recharts": "^3.4.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^7.1.0"
