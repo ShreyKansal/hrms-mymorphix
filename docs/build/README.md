@@ -4,10 +4,11 @@ This is the execution layer on top of the product PRD (`../hrms-prd/`). The PRD 
 
 **If you're new here, read in this order:**
 
-1. [00-architecture-and-tech-stack.md](00-architecture-and-tech-stack.md) — the tech stack (React/Atlaskit, NestJS, PostgreSQL, React Native, AWS) and why. Read this once, refer back as needed.
+1. [00-architecture-and-tech-stack.md](00-architecture-and-tech-stack.md) — the tech stack and why. Read this once, refer back as needed. **Note:** as of the Supabase pivot, this file is stale in places — it still describes the original NestJS/Prisma design in places the build guides have since moved past. Trust the build guides and actual source over this file where they conflict, until it's fully resynced.
 2. [01-project-execution-plan.md](01-project-execution-plan.md) — team structure, sprint cadence, and how the 5 release phases from the PRD map to actual sprints.
-3. `build-guides/` — one file per module, in plain language: what it does, what screens to build, what the data looks like, what API endpoints are needed, what "done" means. **Read the guide for your assigned module before reading the full PRD module** — the guide will point you back to the PRD for anything you need more depth on.
-4. `backlog/` — the same modules broken into estimated tickets, ready to paste into Jira/Linear.
+3. [03-ui-patterns.md](03-ui-patterns.md) — when to use a Modal vs. an inline form, `@atlaskit/dynamic-table` vs. a plain `<table>`, how breadcrumbs/navigation work. Read this before building any new screen — it exists specifically so each new module extends one consistent set of patterns instead of adding its own variant.
+4. `build-guides/` — one file per module, in plain language: what it does, what screens to build, what the data looks like, what "done" means. **Read the guide for your assigned module before reading the full PRD module** — the guide will point you back to the PRD for anything you need more depth on.
+5. `backlog/` — the same modules broken into estimated tickets, ready to paste into Jira/Linear.
 
 ## Status — all 27 modules complete
 
