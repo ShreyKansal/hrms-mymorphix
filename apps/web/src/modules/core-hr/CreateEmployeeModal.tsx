@@ -15,6 +15,7 @@ interface FormData {
   departmentId: string;
   designationId: string;
   gradeId: string;
+  managerId: string;
 }
 
 // docs/build/build-guides/01-core-hr-employee-information.md screen #3 — "a focused
@@ -26,7 +27,7 @@ interface FormData {
 export default function CreateEmployeeModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
   const [error, setError] = useState<string | null>(null);
   const legalEntityId = useAuthStore((s) => s.legalEntityId);
-  const createEmployee = useEmployeesStore((s) => s.createEmployee);
+  const { employees, createEmployee } = useEmployeesStore();
   const { departments, designations, grades, fetchAll } = useOrgManagementStore();
 
   useEffect(() => {
@@ -51,6 +52,7 @@ export default function CreateEmployeeModal({ onClose, onCreated }: { onClose: (
               departmentId: data.departmentId || undefined,
               designationId: data.designationId || undefined,
               gradeId: data.gradeId || undefined,
+              managerId: data.managerId || undefined,
             });
             if (error) setError(error);
             else onCreated();
@@ -108,6 +110,18 @@ export default function CreateEmployeeModal({ onClose, onCreated }: { onClose: (
                         {grades.map((g) => (
                           <option key={g.id} value={g.id}>
                             {g.code} — {g.name}
+                          </option>
+                        ))}
+                      </SelectField>
+                    )}
+                  </Field>
+                  <Field<string, HTMLSelectElement> name="managerId" label="Reports to" defaultValue="">
+                    {({ fieldProps }) => (
+                      <SelectField fieldProps={fieldProps}>
+                        <option value="">—</option>
+                        {employees.map((e) => (
+                          <option key={e.id} value={e.id}>
+                            {e.legal_name}
                           </option>
                         ))}
                       </SelectField>

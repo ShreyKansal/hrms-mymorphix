@@ -66,6 +66,7 @@ export default function EmployeeDirectory() {
         <Heading size="large">Employee Directory</Heading>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <Link to="/organisation">Departments / designations / grades</Link>
+          <Link to="/org-chart">Org chart</Link>
           <Button appearance="primary" onClick={() => setCreateOpen(true)}>
             Add employee
           </Button>

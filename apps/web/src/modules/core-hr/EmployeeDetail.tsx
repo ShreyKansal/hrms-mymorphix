@@ -153,6 +153,10 @@ function EmploymentTab({
           <p style={valueStyle}>{current.designations?.title ?? '—'}</p>
           <p style={labelStyle}>Grade</p>
           <p style={valueStyle}>{current.grades?.name ?? '—'}</p>
+          <p style={labelStyle}>Reports to</p>
+          <p style={valueStyle}>
+            {current.manager ? <Link to={`/employees/${current.manager.id}`}>{current.manager.legal_name}</Link> : '—'}
+          </p>
           <p style={labelStyle}>Employment type</p>
           <p style={valueStyle}>{current.employment_type}</p>
           <p style={labelStyle}>Since</p>
@@ -214,9 +218,12 @@ export default function EmployeeDetail() {
   const [loading, setLoading] = useState(true);
 
   const fetchAssignments = async (employeeId: string) => {
+    // manager:employees!manager_id(...) — same disambiguation as employeesStore.ts's
+    // !employee_id hint: employment_assignments has two FKs to employees, so an unhinted
+    // embed of "employees" here is ambiguous between employee_id and manager_id.
     const { data: history } = await supabase
       .from('employment_assignments')
-      .select('*, departments(*), designations(*), grades(*)')
+      .select('*, departments(*), designations(*), grades(*), manager:employees!manager_id(id, legal_name)')
       .eq('employee_id', employeeId)
       .order('effective_from', { ascending: false });
     setAssignments(history ?? []);

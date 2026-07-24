@@ -6,6 +6,7 @@ import Auth from './modules/auth/Auth';
 import TenantSetup from './modules/auth/TenantSetup';
 import EmployeeDirectory from './modules/core-hr/EmployeeDirectory';
 import EmployeeDetail from './modules/core-hr/EmployeeDetail';
+import OrgChart from './modules/core-hr/OrgChart';
 import OrgManagement from './modules/org-management/OrgManagement';
 
 function RequireAuth({ children }: { children: ReactNode }) {
@@ -68,6 +69,16 @@ export default function App() {
             <RequireAuth>
               <RequireTenant>
                 <OrgManagement />
+              </RequireTenant>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/org-chart"
+          element={
+            <RequireAuth>
+              <RequireTenant>
+                <OrgChart />
               </RequireTenant>
             </RequireAuth>
           }

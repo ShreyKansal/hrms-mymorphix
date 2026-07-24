@@ -17,6 +17,7 @@ interface FormData {
   designationId: string;
   gradeId: string;
   employmentType: string;
+  managerId: string;
 }
 
 // docs/hrms-prd/modules/01-core-hr-employee-information.md §7.2 — a transfer never edits the
@@ -37,11 +38,17 @@ export default function TransferEmployeeModal({
   onTransferred: () => void;
 }) {
   const [error, setError] = useState<string | null>(null);
-  const transferEmployee = useEmployeesStore((s) => s.transferEmployee);
+  const { employees, fetchEmployees, transferEmployee } = useEmployeesStore();
   const { departments, designations, grades, fetchAll } = useOrgManagementStore();
+  // Can't be your own manager — the only self-reference rule worth enforcing client-side;
+  // reporting-chain cycles further up are a Module 2 org-chart concern, not this form's job.
+  const managerOptions = employees.filter((e) => e.id !== employeeId);
 
   useEffect(() => {
     fetchAll();
+    // Refetched here too, not just relied on from the directory: this modal can open from
+    // the Employee Detail page, which doesn't otherwise populate this store.
+    fetchEmployees();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -59,6 +66,7 @@ export default function TransferEmployeeModal({
               designationId: data.designationId || undefined,
               gradeId: data.gradeId || undefined,
               employmentType: data.employmentType || undefined,
+              managerId: data.managerId || undefined,
             });
             if (error) setError(error);
             else onTransferred();
@@ -128,6 +136,18 @@ export default function TransferEmployeeModal({
                   </Field>
                   <Field name="employmentType" label="Employment type" defaultValue={current?.employment_type ?? ''}>
                     {({ fieldProps }) => <TextField {...fieldProps} />}
+                  </Field>
+                  <Field<string, HTMLSelectElement> name="managerId" label="Reports to" defaultValue={current?.manager_id ?? ''}>
+                    {({ fieldProps }) => (
+                      <SelectField fieldProps={fieldProps}>
+                        <option value="">— unchanged —</option>
+                        {managerOptions.map((e) => (
+                          <option key={e.id} value={e.id}>
+                            {e.legal_name}
+                          </option>
+                        ))}
+                      </SelectField>
+                    )}
                   </Field>
                 </FormSection>
               </ModalBody>

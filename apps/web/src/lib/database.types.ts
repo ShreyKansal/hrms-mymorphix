@@ -51,6 +51,7 @@ export type EmploymentAssignment = {
   departments?: { id: string; name: string } | null;
   designations?: { id: string; title: string } | null;
   grades?: { id: string; name: string } | null;
+  manager?: { id: string; legal_name: string } | null;
 };
 
 export type Tenant = {
