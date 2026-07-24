@@ -7,6 +7,7 @@ import { supabase } from '../../lib/supabase';
 import type { Employee, EmploymentAssignment } from '../../lib/database.types';
 import ProfileTab from './ProfileTab';
 import EmploymentTab from './EmploymentTab';
+import DocumentsTab from './DocumentsTab';
 
 export default function EmployeeDetail() {
   const { id } = useParams<{ id: string }>();
@@ -58,6 +59,7 @@ export default function EmployeeDetail() {
         <TabList>
           <Tab>Profile</Tab>
           <Tab>Employment</Tab>
+          <Tab>Documents</Tab>
         </TabList>
         <TabPanel>
           <div style={{ paddingTop: 16 }}>
@@ -67,6 +69,11 @@ export default function EmployeeDetail() {
         <TabPanel>
           <div style={{ paddingTop: 16 }}>
             <EmploymentTab employeeId={employee.id} assignments={assignments} onTransferred={() => fetchAssignments(employee.id)} />
+          </div>
+        </TabPanel>
+        <TabPanel>
+          <div style={{ paddingTop: 16 }}>
+            <DocumentsTab employeeId={employee.id} />
           </div>
         </TabPanel>
       </Tabs>

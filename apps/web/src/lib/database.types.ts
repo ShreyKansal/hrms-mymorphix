@@ -120,6 +120,17 @@ export type EmployeePreviousEmployment = {
   created_at: string;
 };
 
+export type Document = {
+  id: string;
+  tenant_id: string;
+  employee_id: string;
+  category: 'resume' | 'certificate' | 'id_proof' | 'offer_letter' | 'other';
+  file_name: string;
+  storage_path: string;
+  content_type: string | null;
+  uploaded_at: string;
+};
+
 // Minimal shape satisfying @supabase/supabase-js's generic Database type parameter —
 // enough for typed .from()/.rpc() calls without hand-writing the full generated schema.
 // Every table needs `Relationships` and the schema needs `Views`, even if empty — the
@@ -347,6 +358,30 @@ export type Database = {
           start_date?: string | null;
           end_date?: string | null;
           created_at?: string;
+        };
+        Relationships: [];
+      };
+      documents: {
+        Row: Document;
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          employee_id: string;
+          category?: 'resume' | 'certificate' | 'id_proof' | 'offer_letter' | 'other';
+          file_name: string;
+          storage_path: string;
+          content_type?: string | null;
+          uploaded_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string;
+          employee_id?: string;
+          category?: 'resume' | 'certificate' | 'id_proof' | 'offer_letter' | 'other';
+          file_name?: string;
+          storage_path?: string;
+          content_type?: string | null;
+          uploaded_at?: string;
         };
         Relationships: [];
       };
