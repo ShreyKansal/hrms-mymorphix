@@ -42,7 +42,7 @@ function PersonalContactSection({ employee, onSaved }: { employee: Employee; onS
         <p style={labelStyle}>Personal phone</p>
         <p style={valueStyle}>{employee.personal_phone ?? '—'}</p>
 
-        <div style={{ marginTop: 20 }}>
+        <div style={{ marginTop: 24 }}>
           <Button onClick={() => setEditing(true)}>Edit</Button>
         </div>
       </div>
@@ -103,7 +103,7 @@ function PersonalContactSection({ employee, onSaved }: { employee: Employee; onS
               {({ fieldProps }) => <TextField {...fieldProps} />}
             </Field>
           </FormSection>
-          <div style={{ marginTop: 20, display: 'flex', gap: 8 }}>
+          <div style={{ marginTop: 24, display: 'flex', gap: 8 }}>
             <Button type="submit" appearance="primary">
               Save
             </Button>
