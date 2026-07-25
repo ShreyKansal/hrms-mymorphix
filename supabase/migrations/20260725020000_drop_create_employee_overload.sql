@@ -1,0 +1,16 @@
+-- 20260725010000_create_employee_full_profile_fields.sql added four new parameters
+-- (p_date_of_birth, p_gender, p_pan_number, p_personal_phone) to create_employee() using
+-- `create or replace function`. Postgres only replaces a function in place when the parameter
+-- signature matches exactly — a changed signature creates a second, overloaded function instead
+-- of replacing the first. That left two live create_employee() functions in the database (the
+-- old 9-param one from 20260724070000_admin_only_write_checks.sql, and the new 13-param one),
+-- and PostgREST refuses to guess between overloads when called with named parameters that both
+-- versions accept — every call to Add Employee has been failing with "Could not choose the best
+-- candidate function" since that migration was applied. Caught live via
+-- apps/web/e2e/_scratch-verify-branding-pagination.mjs while seeding test employees, not by any
+-- committed regression suite (none of them create enough employees through the RPC to have hit
+-- this — verify-create-employee-wizard.mjs only ever creates one).
+--
+-- Fix: drop the stale 9-param overload by its exact type signature, leaving only the current
+-- 13-param version.
+drop function if exists public.create_employee(uuid, text, date, text, text, uuid, uuid, uuid, uuid);
