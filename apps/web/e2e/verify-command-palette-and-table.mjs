@@ -44,14 +44,14 @@ const employeeIds = [];
 async function createEmployeeQuick(name, joiningDate) {
   await page.goto(`${BASE_URL}/employees/new`, { waitUntil: 'networkidle' });
   await page.getByLabel('Full legal name').fill(name);
-  await page.getByRole('button', { name: /next: work information/i }).click();
+  await page.getByRole('button', { name: /continue/i }).click();
   await page.waitForTimeout(250);
   await page.getByLabel('Joining date').fill(joiningDate);
-  await page.getByRole('button', { name: /next: education/i }).click();
+  await page.getByRole('button', { name: /continue/i }).click();
   await page.waitForTimeout(250);
-  await page.getByRole('button', { name: /next: previous employment/i }).click();
+  await page.getByRole('button', { name: /continue/i }).click();
   await page.waitForTimeout(250);
-  await page.getByRole('button', { name: /next: review/i }).click();
+  await page.getByRole('button', { name: /continue/i }).click();
   await page.waitForTimeout(250);
   await page.getByRole('button', { name: /create employee/i }).click();
   await page.waitForTimeout(1200);
@@ -62,8 +62,8 @@ async function createEmployeeQuick(name, joiningDate) {
 try {
   await page.goto(`${BASE_URL}/auth`, { waitUntil: 'networkidle' });
   await page.getByLabel('Email').fill(email);
-  await page.getByLabel('Password').fill(password);
-  await page.getByRole('button', { name: 'Log in', exact: true }).click();
+  await page.locator('#password').fill(password);
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   await page.waitForTimeout(1200);
   await page.getByLabel('Company name').fill(`Palette Table Co ${stamp}`);
   await page.getByLabel('Primary legal entity name').fill(`Palette Table Co ${stamp} Pvt Ltd`);
@@ -80,7 +80,7 @@ try {
   await page.waitForTimeout(500);
 
   // --- Command palette: click trigger ---
-  await page.getByRole('button', { name: /search employees/i }).click();
+  await page.getByRole('button', { name: /search/i }).click();
   await page.waitForTimeout(300);
   const dialog = page.getByRole('dialog', { name: 'Search' });
   assert((await dialog.count()) > 0, 'command palette opens as a dialog on trigger click');
@@ -88,18 +88,27 @@ try {
   const viewport = page.viewportSize();
   const centeredX = dialogBox && viewport && Math.abs((dialogBox.x + dialogBox.width / 2) - viewport.width / 2) < 20;
   assert(centeredX, `palette is horizontally centered in the viewport (dialog center x=${dialogBox ? dialogBox.x + dialogBox.width / 2 : 'n/a'}, viewport width=${viewport?.width})`);
+  // Tailwind v4 computes bg-black/60 as oklab(0 0 0 / 0.6), not rgba(...) — check for a
+  // non-transparent background rather than assuming a specific color-space format.
   const hasBackdrop = await page.evaluate(() => {
-    const el = [...document.querySelectorAll('div')].find((d) => getComputedStyle(d).backgroundColor.includes('rgba') && getComputedStyle(d).position === 'fixed');
+    const TRANSPARENT = new Set(['', 'transparent', 'rgba(0, 0, 0, 0)']);
+    const el = [...document.querySelectorAll('div')].find(
+      (d) => getComputedStyle(d).position === 'fixed' && !TRANSPARENT.has(getComputedStyle(d).backgroundColor),
+    );
     return !!el;
   });
   assert(hasBackdrop, 'a fixed-position backdrop element exists behind the palette');
   await page.screenshot({ path: join(outDir, 'palette-open-default.png'), fullPage: true });
 
   // idle state shows employees without typing
-  assert((await page.getByText('All employees').count()) > 0, 'idle state (no query) shows an "All employees" browse list, not blank');
+  assert((await page.getByText('Recent employees').count()) > 0, 'idle state (no query) shows a "Recent employees" browse list, not blank');
 
   // --- Keyboard nav ---
-  await page.keyboard.type('a');
+  // "sharma" matches only the employee (no Navigation-section label contains it), so the flat
+  // arrow-navigable list (Navigation items + employee results share one cursor) has just one
+  // entry — a query like "a" would match several Navigation items first (Org Chart, Add
+  // employee, Organisation, Team), landing the cursor on a nav action instead.
+  await page.keyboard.type('sharma');
   await page.waitForTimeout(200);
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('ArrowDown');
@@ -130,11 +139,11 @@ try {
   const rowCheckboxes = page.locator('table tbody input[type="checkbox"]');
   assert((await rowCheckboxes.count()) === 3, `table has one checkbox per row (found ${await rowCheckboxes.count()})`);
 
-  await page.getByPlaceholder('Filter this list…').fill('Bilal');
+  await page.getByPlaceholder('Filter by name, ID, role…').fill('Bilal');
   await page.waitForTimeout(300);
   const visibleRows = await page.locator('table tbody tr').count();
   assert(visibleRows === 1, `table-level filter narrows rows to matches only (got ${visibleRows} row(s) for "Bilal")`);
-  await page.getByPlaceholder('Filter this list…').fill('');
+  await page.getByPlaceholder('Filter by name, ID, role…').fill('');
   await page.waitForTimeout(300);
 
   await rowCheckboxes.first().check();

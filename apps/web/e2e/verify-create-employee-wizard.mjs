@@ -66,9 +66,9 @@ let createdEmployeeId = null;
 try {
   await page.goto(`${BASE_URL}/auth`, { waitUntil: 'networkidle' });
   await page.getByLabel('Email').fill(email);
-  await page.getByLabel('Password').fill(password);
-  await page.getByRole('button', { name: 'Log in', exact: true }).click();
-  await page.waitForTimeout(1500);
+  await page.locator('#password').fill(password);
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+  await page.waitForURL(/\/setup$/, { timeout: 15000 });
   await page.screenshot({ path: join(outDir, '1-post-login.png'), fullPage: true });
   assert(page.url().endsWith('/setup'), 'pre-confirmed test user logs in and reaches /setup');
 
@@ -96,14 +96,14 @@ try {
   await page.getByLabel('PAN').fill('ABCDE1234F');
   await page.getByLabel('Personal email').fill(`personal-${stamp}@gmail.com`);
   await page.getByLabel('Personal phone').fill('9876543210');
-  await page.getByRole('button', { name: /next: work information/i }).click();
+  await page.getByRole('button', { name: /continue/i }).click();
   await page.waitForTimeout(300);
   await page.screenshot({ path: join(outDir, '4-wizard-step2.png'), fullPage: true });
   assert((await page.locator('text=Work information').count()) > 0, 'advanced to step 2 (Work information)');
 
   await page.getByLabel('Joining date').fill('2026-08-01');
   await page.getByLabel('Employment type').fill('Permanent');
-  await page.getByRole('button', { name: /next: education/i }).click();
+  await page.getByRole('button', { name: /continue/i }).click();
   await page.waitForTimeout(300);
   await page.screenshot({ path: join(outDir, '5-wizard-step3.png'), fullPage: true });
   assert((await page.locator('text=Optional — add any degrees').count()) > 0, 'advanced to step 3 (Education)');
@@ -116,7 +116,7 @@ try {
   await page.getByRole('button', { name: 'Add', exact: true }).click();
   await page.waitForTimeout(300);
   assert((await page.locator('text=Test University').count()) > 0, 'education row appears in the step 3 list after Add');
-  await page.getByRole('button', { name: /next: previous employment/i }).click();
+  await page.getByRole('button', { name: /continue/i }).click();
   await page.waitForTimeout(300);
   await page.screenshot({ path: join(outDir, '6-wizard-step4.png'), fullPage: true });
   assert((await page.locator('text=Optional — add prior employers').count()) > 0, 'advanced to step 4 (Previous employment)');
@@ -130,14 +130,14 @@ try {
   assert((await page.locator('text=Old Co').count()) > 0, 'previous-employment row appears in the step 4 list after Add');
 
   // Back-navigation sanity check before moving on: confirm the row survives a Back then Next.
-  await page.getByRole('button', { name: 'Previous', exact: true }).click();
+  await page.getByRole('button', { name: 'Back', exact: true }).click();
   await page.waitForTimeout(300);
   assert((await page.locator('text=Test University').count()) > 0, 'navigating back to step 3 preserves the added education row');
-  await page.getByRole('button', { name: /next: previous employment/i }).click();
+  await page.getByRole('button', { name: /continue/i }).click();
   await page.waitForTimeout(300);
   assert((await page.locator('text=Old Co').count()) > 0, 'navigating forward again preserves the added previous-employment row');
 
-  await page.getByRole('button', { name: /next: review/i }).click();
+  await page.getByRole('button', { name: /continue/i }).click();
   await page.waitForTimeout(300);
   await page.screenshot({ path: join(outDir, '7-wizard-review.png'), fullPage: true });
 
@@ -156,8 +156,13 @@ try {
 
   const detailText = await page.locator('body').textContent();
   assert(detailText?.includes(employeeName), 'detail page shows the newly created employee name');
-  assert(detailText?.includes('active'), 'employee status shows as "active", not stuck on draft');
+  assert(detailText?.includes('Active'), 'employee status shows as "Active", not stuck on draft');
+  // The Education/Previous-employment sections fetch their own rows on mount (a second round
+  // trip after the employee record itself loads) — wait for the text rather than assuming the
+  // fixed post-create timeout above already covered it.
+  await page.getByText('Test University').waitFor({ timeout: 10000 });
   assert((await page.getByText('Test University').count()) > 0, 'education row persisted to the DB and shows on the Profile tab');
+  await page.getByText('Old Co').waitFor({ timeout: 10000 });
   assert((await page.getByText('Old Co').count()) > 0, 'previous-employment row persisted to the DB and shows on the Profile tab');
 
   const KNOWN_ATLASKIT_WARNINGS = [

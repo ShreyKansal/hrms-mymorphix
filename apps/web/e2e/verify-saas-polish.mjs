@@ -45,14 +45,14 @@ const employeeIds = [];
 async function createEmployeeQuick(name, joiningDate) {
   await page.goto(`${BASE_URL}/employees/new`, { waitUntil: 'networkidle' });
   await page.getByLabel('Full legal name').fill(name);
-  await page.getByRole('button', { name: /next: work information/i }).click();
+  await page.getByRole('button', { name: /continue/i }).click();
   await page.waitForTimeout(250);
   await page.getByLabel('Joining date').fill(joiningDate);
-  await page.getByRole('button', { name: /next: education/i }).click();
+  await page.getByRole('button', { name: /continue/i }).click();
   await page.waitForTimeout(250);
-  await page.getByRole('button', { name: /next: previous employment/i }).click();
+  await page.getByRole('button', { name: /continue/i }).click();
   await page.waitForTimeout(250);
-  await page.getByRole('button', { name: /next: review/i }).click();
+  await page.getByRole('button', { name: /continue/i }).click();
   await page.waitForTimeout(250);
   await page.getByRole('button', { name: /create employee/i }).click();
   await page.waitForTimeout(1200);
@@ -64,8 +64,8 @@ async function createEmployeeQuick(name, joiningDate) {
 try {
   await page.goto(`${BASE_URL}/auth`, { waitUntil: 'networkidle' });
   await page.getByLabel('Email').fill(email);
-  await page.getByLabel('Password').fill(password);
-  await page.getByRole('button', { name: 'Log in', exact: true }).click();
+  await page.locator('#password').fill(password);
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   await page.waitForTimeout(1200);
   await page.getByLabel('Company name').fill(`SaaS Polish Co ${stamp}`);
   await page.getByLabel('Primary legal entity name').fill(`SaaS Polish Co ${stamp} Pvt Ltd`);
@@ -81,7 +81,13 @@ try {
   const dobBox = await page.getByLabel('Date of birth').boundingBox();
   const genderBox = await page.getByLabel('Gender').boundingBox();
   assert(nameBox && nameBox.width > 500, `legal name field spans full grid width (got ${nameBox?.width})`);
-  assert(dobBox && dobBox.width < 350, `date of birth field is grid-constrained, not full page width (got ${dobBox?.width})`);
+  // Relative to the full-width name field rather than a fixed px threshold — the design
+  // system's grid gap/padding can change the exact column width without changing the fact
+  // that a 2-column row field should be roughly half the full-width field, not full width.
+  assert(
+    dobBox && nameBox && dobBox.width < nameBox.width * 0.65,
+    `date of birth field is grid-constrained, not full page width (got ${dobBox?.width}, name field is ${nameBox?.width})`,
+  );
   assert(genderBox && Math.abs((dobBox?.y ?? 0) - genderBox.y) < 5, 'date of birth and gender sit side by side (same row)');
 
   // Create a few employees so the Directory table and sidebar search have real data.

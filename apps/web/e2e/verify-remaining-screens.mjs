@@ -37,8 +37,8 @@ let empId = null;
 try {
   await page.goto(`${BASE_URL}/auth`, { waitUntil: 'networkidle' });
   await page.getByLabel('Email').fill(email);
-  await page.getByLabel('Password').fill('TestPassword123!');
-  await page.getByRole('button', { name: 'Log in', exact: true }).click();
+  await page.locator('#password').fill('TestPassword123!');
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   await page.waitForTimeout(1000);
   await page.getByLabel('Company name').fill(`Remaining Co ${stamp}`);
   await page.getByLabel('Primary legal entity name').fill(`Remaining Co ${stamp} Ltd`);
@@ -52,14 +52,14 @@ try {
   await page.screenshot({ path: join(outDir, 'org-management.png'), fullPage: true });
   await page.getByLabel('New department').fill('Engineering');
   await page.getByRole('button', { name: 'Add', exact: true }).click();
-  await page.waitForTimeout(500);
+  await page.getByText('Engineering').waitFor({ timeout: 10000 });
   assert((await page.getByText('Engineering').count()) > 0, 'OrgManagement: added department appears in the list');
 
   await page.getByRole('tab', { name: 'Designations' }).click();
   await page.waitForTimeout(200);
   await page.getByLabel('New designation').fill('Staff Engineer');
   await page.getByRole('button', { name: 'Add', exact: true }).click();
-  await page.waitForTimeout(500);
+  await page.getByText('Staff Engineer').waitFor({ timeout: 10000 });
   assert((await page.getByText('Staff Engineer').count()) > 0, 'OrgManagement: added designation appears in the list');
 
   await page.getByRole('tab', { name: 'Grades' }).click();
@@ -67,7 +67,7 @@ try {
   await page.getByLabel('Code').fill('L5');
   await page.getByLabel('New grade').fill('Senior');
   await page.getByRole('button', { name: 'Add', exact: true }).click();
-  await page.waitForTimeout(500);
+  await page.getByText('L5').waitFor({ timeout: 10000 });
   assert((await page.getByText('L5').count()) > 0, 'OrgManagement: added grade appears in the list');
 
   // --- Team: invite form renders, admin-visible ---
@@ -79,14 +79,14 @@ try {
   // --- Create an employee for OrgChart + Transfer testing ---
   await page.goto(`${BASE_URL}/employees/new`, { waitUntil: 'networkidle' });
   await page.getByLabel('Full legal name').fill('Transfer Test Employee');
-  await page.getByRole('button', { name: /next: work information/i }).click();
+  await page.getByRole('button', { name: /continue/i }).click();
   await page.waitForTimeout(300);
   await page.getByLabel('Joining date').fill('2026-01-01');
-  await page.getByRole('button', { name: /next: education/i }).click();
+  await page.getByRole('button', { name: /continue/i }).click();
   await page.waitForTimeout(300);
-  await page.getByRole('button', { name: /next: previous employment/i }).click();
+  await page.getByRole('button', { name: /continue/i }).click();
   await page.waitForTimeout(300);
-  await page.getByRole('button', { name: /next: review/i }).click();
+  await page.getByRole('button', { name: /continue/i }).click();
   await page.waitForTimeout(300);
   await page.getByRole('button', { name: /create employee/i }).click();
   await page.waitForTimeout(1200);
