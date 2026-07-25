@@ -1,28 +1,19 @@
-/*
- * important: Atlaskit's still-active components (during this migration's transition period)
- * ship a global, unscoped CSS reset via @atlaskit/css-reset, injected at runtime through
- * Emotion — confirmed by inspecting document.head: every Emotion <style> tag lands after
- * Vite's own dev-mode <style> tags for this file. Per the CSS cascade spec, *unlayered* rules
- * always beat *layered* ones regardless of source order or specificity, and Tailwind v4 puts
- * all its own output inside named layers (theme/base/components/utilities) — so without this,
- * Atlaskit's reset silently wins every conflict on bare elements (div/header/button/etc.),
- * which is exactly what broke the AppShell header's flex layout. `important` makes every
- * generated utility carry !important, the sanctioned way to coexist with unlayered legacy CSS
- * during a transition — remove this once Atlaskit is fully gone and there's nothing left to
- * out-cascade.
- */
-@import "tailwindcss" important;
+@import "tailwindcss";
 
 /*
- * Theme bridge: Supabase's design system (Radix + Tailwind, see
- * docs/design-system/supabase-source/) supplies the component architecture — this app keeps
- * Atlaskit's actual color palette and font stack, per explicit instruction, rather than
- * Supabase's own brand colors. Every value below was measured from this app's real, live
- * Atlaskit rendering (Playwright + getComputedStyle against actual elements — a primary
- * Button, the sidebar's active nav item, a real TextField, a Lozenge, etc.), not guessed or
- * copied from Atlaskit's docs. See apps/web/e2e/inspect-atlaskit-values.mjs for the
- * measurement script if these ever need re-verifying against a future @atlaskit/tokens
- * version.
+ * Theme bridge: the component architecture (Radix primitives + cva variants + Tailwind
+ * utilities) follows the same pattern Supabase's own design system uses — this app keeps
+ * Atlaskit's actual color palette and font stack instead, per explicit instruction, not
+ * Supabase's brand colors. Every value below was measured from this app's real, live Atlaskit
+ * rendering before the migration (Playwright + getComputedStyle against actual elements — a
+ * primary Button, the sidebar's active nav item, a real TextField, a Lozenge, etc.), not
+ * guessed or copied from Atlaskit's docs. `@atlaskit/*` is no longer a dependency of this app
+ * (see docs/design-system/atlassian-design-system/ for what's archived from that era) — these
+ * values are what's left of it, captured once and now just plain CSS.
+ *
+ * `important` mode used to be needed here to out-cascade @atlaskit/css-reset's unlayered,
+ * Emotion-injected global reset — with that dependency gone, there's nothing left to
+ * out-cascade, so this is back to a plain import.
  */
 @theme {
   --font-sans: -apple-system, "system-ui", "Segoe UI", Roboto, Oxygen, Ubuntu, "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
