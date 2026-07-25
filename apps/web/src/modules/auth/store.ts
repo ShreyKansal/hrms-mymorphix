@@ -12,12 +12,16 @@ import { supabase } from '../../lib/supabase';
 interface AuthState {
   session: Session | null;
   tenantId: string | null;
+  tenantName: string | null;
   legalEntityId: string | null;
   role: 'admin' | 'employee' | null;
   loading: boolean;
   initialise: () => Promise<void>;
   signUp: (email: string, password: string) => Promise<{ error: string | null }>;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
+  signInWithGoogle: () => Promise<{ error: string | null }>;
+  signInWithMicrosoft: () => Promise<{ error: string | null }>;
+  resetPassword: (email: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   provisionTenant: (companyName: string, legalEntityName: string) => Promise<{ error: string | null }>;
   tryAcceptInvitation: () => Promise<boolean>;
@@ -30,6 +34,7 @@ let refreshSeq = 0;
 export const useAuthStore = create<AuthState>((set, get) => ({
   session: null,
   tenantId: null,
+  tenantName: null,
   legalEntityId: null,
   role: null,
   loading: true,
@@ -49,7 +54,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     supabase.auth.onAuthStateChange((_event, session) => {
       set({ session });
       if (session) get().refreshProfile();
-      else set({ tenantId: null, legalEntityId: null, role: null });
+      else set({ tenantId: null, tenantName: null, legalEntityId: null, role: null });
     });
   },
 
@@ -80,19 +85,22 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return;
     }
     if (!profile?.tenant_id) {
-      set({ tenantId: null, legalEntityId: null, role: null });
+      set({ tenantId: null, tenantName: null, legalEntityId: null, role: null });
       return;
     }
     // Sprint 1 only ever creates one legal entity at setup time — same simplification as
     // before, now sourced live instead of stashed in localStorage.
-    const { data: legalEntity } = await supabase
-      .from('legal_entities')
-      .select('id')
-      .eq('tenant_id', profile.tenant_id)
-      .limit(1)
-      .maybeSingle();
+    const [{ data: legalEntity }, { data: tenant }] = await Promise.all([
+      supabase.from('legal_entities').select('id').eq('tenant_id', profile.tenant_id).limit(1).maybeSingle(),
+      supabase.from('tenants').select('name').eq('id', profile.tenant_id).maybeSingle(),
+    ]);
     if (seq !== refreshSeq) return;
-    set({ tenantId: profile.tenant_id, legalEntityId: legalEntity?.id ?? null, role: profile.role });
+    set({
+      tenantId: profile.tenant_id,
+      tenantName: tenant?.name ?? null,
+      legalEntityId: legalEntity?.id ?? null,
+      role: profile.role,
+    });
   },
 
   signUp: async (email, password) => {
@@ -106,9 +114,41 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     return { error: error?.message ?? null };
   },
 
+  // Google OAuth. This kicks off a full-page redirect to Google and back to the app; the session
+  // is then picked up by onAuthStateChange in initialise(), and the route guards send the user to
+  // /setup or /employees as appropriate. Requires the Google provider to be enabled on the
+  // Supabase project. Returns an error only if the redirect itself can't be started.
+  signInWithGoogle: async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: `${window.location.origin}/employees` },
+    });
+    return { error: error?.message ?? null };
+  },
+
+  // Microsoft / Outlook OAuth via the Azure provider — covers Microsoft 365 / Outlook work
+  // accounts, which is what most organisations use. Same redirect-and-back flow as Google.
+  // Requires the Azure provider to be enabled on the Supabase project.
+  signInWithMicrosoft: async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'azure',
+      options: { scopes: 'email', redirectTo: `${window.location.origin}/employees` },
+    });
+    return { error: error?.message ?? null };
+  },
+
+  // Sends a password-reset email. The link returns the user to /auth (a full recovery flow is
+  // out of scope for this slice, but the email itself is real and useful).
+  resetPassword: async (email) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/auth`,
+    });
+    return { error: error?.message ?? null };
+  },
+
   signOut: async () => {
     await supabase.auth.signOut();
-    set({ session: null, tenantId: null, legalEntityId: null, role: null });
+    set({ session: null, tenantId: null, tenantName: null, legalEntityId: null, role: null });
   },
 
   provisionTenant: async (companyName, legalEntityName) => {

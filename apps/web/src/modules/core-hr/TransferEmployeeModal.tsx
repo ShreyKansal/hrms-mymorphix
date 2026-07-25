@@ -4,21 +4,17 @@ import { useEmployeesStore } from './store';
 import type { EmploymentAssignment } from '../../lib/database.types';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
-import { Label } from '../../components/ui/label';
+import { Field } from '../../components/ui/field';
 import { Select } from '../../components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogBody, DialogFooter } from '../../components/ui/dialog';
+import { Alert } from '../../components/ui/alert';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogBody, DialogFooter } from '../../components/ui/dialog';
 
 const REASON_CODES = ['Promotion', 'Transfer', 'ManagerChange', 'Correction'];
 
-// docs/hrms-prd/modules/01-core-hr-employee-information.md §7.2 — a transfer never edits the
-// current assignment row in place, it closes it out and inserts a new one. That's entirely the
-// transfer_employee() RPC's job; this dialog is just the form in front of it. Fields default to
-// the current assignment's values — a transfer is usually a change to ONE thing, not a
-// from-scratch re-entry of everything.
-//
-// Stays a Dialog (not a Sheet/full page) — re-assessed against the same researched criteria
-// used for Create Employee (docs/build/03-ui-patterns.md §2) and genuinely earns it: one
-// category of fields (all "this employee's next assignment"), defaults-driven, brief.
+// A transfer never edits the current assignment row in place — it closes it out and inserts a new
+// one (the transfer_employee() RPC's job). Fields default to the current assignment's values,
+// since a transfer is usually a change to ONE thing, not a from-scratch re-entry. Stays a Dialog:
+// one category of fields, defaults-driven, brief.
 export default function TransferEmployeeModal({
   employeeId,
   current,
@@ -34,14 +30,10 @@ export default function TransferEmployeeModal({
   const [submitting, setSubmitting] = useState(false);
   const { employees, fetchEmployees, transferEmployee } = useEmployeesStore();
   const { departments, designations, grades, fetchAll } = useOrgManagementStore();
-  // Can't be your own manager — the only self-reference rule worth enforcing client-side;
-  // reporting-chain cycles further up are a Module 2 org-chart concern, not this form's job.
   const managerOptions = employees.filter((e) => e.id !== employeeId);
 
   useEffect(() => {
     fetchAll();
-    // Refetched here too, not just relied on from the directory: this modal can open from
-    // the Employee Detail page, which doesn't otherwise populate this store.
     fetchEmployees();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -72,24 +64,22 @@ export default function TransferEmployeeModal({
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Transfer employee</DialogTitle>
+          <DialogDescription>Close out the current assignment and start a new one. Leave a field on “unchanged” to keep it.</DialogDescription>
         </DialogHeader>
         {/* Submit button lives in DialogFooter, outside this <form> — the `form` attribute on
-            that button associates it back to this form by id, the standard pattern for a
-            footer that isn't nested inside the form element itself. */}
+            that button associates it back by id. */}
         <form id="transfer-employee-form" onSubmit={handleSubmit}>
-          <DialogBody>
-            {error && <p className="mb-3 text-sm text-text-danger">{error}</p>}
-            <div className="space-y-3">
-              <div>
-                <Label htmlFor="effectiveFrom" required>
-                  Effective from
-                </Label>
+          <DialogBody className="space-y-4">
+            {error && (
+              <Alert variant="destructive" title="Couldn't transfer">
+                {error}
+              </Alert>
+            )}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Field label="Effective from" htmlFor="effectiveFrom" required>
                 <Input id="effectiveFrom" name="effectiveFrom" type="date" required autoFocus />
-              </div>
-              <div>
-                <Label htmlFor="reasonCode" required>
-                  Reason
-                </Label>
+              </Field>
+              <Field label="Reason" htmlFor="reasonCode" required>
                 <Select id="reasonCode" name="reasonCode" required defaultValue={REASON_CODES[0]}>
                   {REASON_CODES.map((r) => (
                     <option key={r} value={r}>
@@ -97,9 +87,8 @@ export default function TransferEmployeeModal({
                     </option>
                   ))}
                 </Select>
-              </div>
-              <div>
-                <Label htmlFor="departmentId">Department</Label>
+              </Field>
+              <Field label="Department" htmlFor="departmentId">
                 <Select id="departmentId" name="departmentId" defaultValue={current?.department_id ?? ''}>
                   <option value="">— unchanged —</option>
                   {departments.map((d) => (
@@ -108,9 +97,8 @@ export default function TransferEmployeeModal({
                     </option>
                   ))}
                 </Select>
-              </div>
-              <div>
-                <Label htmlFor="designationId">Designation</Label>
+              </Field>
+              <Field label="Designation" htmlFor="designationId">
                 <Select id="designationId" name="designationId" defaultValue={current?.designation_id ?? ''}>
                   <option value="">— unchanged —</option>
                   {designations.map((d) => (
@@ -119,9 +107,8 @@ export default function TransferEmployeeModal({
                     </option>
                   ))}
                 </Select>
-              </div>
-              <div>
-                <Label htmlFor="gradeId">Grade</Label>
+              </Field>
+              <Field label="Grade" htmlFor="gradeId">
                 <Select id="gradeId" name="gradeId" defaultValue={current?.grade_id ?? ''}>
                   <option value="">— unchanged —</option>
                   {grades.map((g) => (
@@ -130,13 +117,11 @@ export default function TransferEmployeeModal({
                     </option>
                   ))}
                 </Select>
-              </div>
-              <div>
-                <Label htmlFor="employmentType">Employment type</Label>
+              </Field>
+              <Field label="Employment type" htmlFor="employmentType">
                 <Input id="employmentType" name="employmentType" defaultValue={current?.employment_type ?? ''} />
-              </div>
-              <div>
-                <Label htmlFor="managerId">Reports to</Label>
+              </Field>
+              <Field label="Reports to" htmlFor="managerId" className="sm:col-span-2">
                 <Select id="managerId" name="managerId" defaultValue={current?.manager_id ?? ''}>
                   <option value="">— unchanged —</option>
                   {managerOptions.map((e) => (
@@ -145,12 +130,12 @@ export default function TransferEmployeeModal({
                     </option>
                   ))}
                 </Select>
-              </div>
+              </Field>
             </div>
           </DialogBody>
         </form>
         <DialogFooter>
-          <Button type="button" variant="ghost" onClick={onClose}>
+          <Button type="button" variant="default" onClick={onClose}>
             Cancel
           </Button>
           <Button type="submit" form="transfer-employee-form" variant="primary" loading={submitting}>

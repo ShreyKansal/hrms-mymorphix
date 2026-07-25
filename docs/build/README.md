@@ -6,9 +6,20 @@ This is the execution layer on top of the product PRD (`../hrms-prd/`). The PRD 
 
 1. [00-architecture-and-tech-stack.md](00-architecture-and-tech-stack.md) — the tech stack and why. Read this once, refer back as needed. **Note:** as of the Supabase pivot, this file is stale in places — it still describes the original NestJS/Prisma design in places the build guides have since moved past. Trust the build guides and actual source over this file where they conflict, until it's fully resynced.
 2. [01-project-execution-plan.md](01-project-execution-plan.md) — team structure, sprint cadence, and how the 5 release phases from the PRD map to actual sprints.
-3. [03-ui-patterns.md](03-ui-patterns.md) — when to use a Modal vs. an inline form, `@atlaskit/dynamic-table` vs. a plain `<table>`, how breadcrumbs/navigation work. Read this before building any new screen — it exists specifically so each new module extends one consistent set of patterns instead of adding its own variant.
-4. `build-guides/` — one file per module, in plain language: what it does, what screens to build, what the data looks like, what "done" means. **Read the guide for your assigned module before reading the full PRD module** — the guide will point you back to the PRD for anything you need more depth on.
-5. `backlog/` — the same modules broken into estimated tickets, ready to paste into Jira/Linear.
+3. [03-ui-patterns.md](03-ui-patterns.md) — the canonical Supabase-aligned product patterns:
+   layout, navigation, forms, modality, tables, states, cards, actions, charts, accessibility,
+   and the deliberate theme boundary (Supabase architecture with this HRMS's configured
+   colors/fonts). Read this before building a new screen.
+4. [04-supabase-ui-implementation-instructions.md](04-supabase-ui-implementation-instructions.md)
+   — the implementation and review checklist for every UI change.
+5. `build-guides/` — one file per module, in plain language: what it does, what screens to build, what the data looks like, what "done" means. **Read the guide for your assigned module before reading the full PRD module** — the guide will point you back to the PRD for anything you need more depth on.
+6. `backlog/` — the same modules broken into estimated tickets, ready to paste into Jira/Linear.
+
+> **UI authority:** some older module guides/backlog tickets still name Atlaskit components.
+> Those references describe the pre-migration implementation and are not current package
+> instructions. For all new or changed UI, `03-ui-patterns.md`,
+> `04-supabase-ui-implementation-instructions.md`, and the actual local primitives in
+> `apps/web/src/components/ui/` take precedence. Do not add an `@atlaskit/*` dependency.
 
 ## Status — all 27 modules complete
 
@@ -16,6 +27,8 @@ This is the execution layer on top of the product PRD (`../hrms-prd/`). The PRD 
 |---|---|
 | Architecture & tech stack | ✅ Complete |
 | Project execution plan | ✅ Complete |
+| Supabase-aligned UI patterns | ✅ Complete |
+| Supabase UI implementation instructions | ✅ Complete |
 | Foundation-phase build guides (Modules 1, 2, 17, 18, 21, 22) | ✅ Complete |
 | Foundation-phase backlog (~255 pts) | ✅ Complete |
 | HR Operations-phase build guides (Modules 3, 4, 5, 12, 13, 15, 16, 20, 24, 26) | ✅ Complete |

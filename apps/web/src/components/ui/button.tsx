@@ -3,29 +3,33 @@ import { Slot } from 'radix-ui';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '../../lib/ui/cn';
 
-// Same variant/size shape as Supabase's design system (see docs/design-system/supabase-source)
-// so the rest of the migration can follow one consistent component API — but every color here
-// is Atlaskit's real, measured value (see src/styles/tailwind.css's header comment), not
-// Supabase's brand palette. Written fresh rather than copying their file, since the actual
-// class values are almost entirely different anyway once re-themed.
+// Supabase design system Button — matched to the design system's actual rendered markup. Notes:
+// - `primary` is the brand-green action: `bg-brand-400` in light / `bg-brand-500` in dark, with
+//   `text-foreground` (so the label is dark-on-green in light, light-on-green in dark) and a
+//   brand-tinted border. This is exactly what Supabase's own "Sign in" button uses.
+// - Buttons are `font-normal` (Supabase's `font-regular`) with a neutral focus ring — the brand
+//   green is reserved for the fill, not the focus state.
+// - Size heights mirror Supabase's scale; `medium` (h-[34px]) lines up with Input in toolbars.
 const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focused)] disabled:pointer-events-none disabled:opacity-50',
+  'focus-ring relative inline-flex cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-md border text-center font-normal transition-colors duration-200 ease-out disabled:pointer-events-none disabled:opacity-50',
   {
     variants: {
       variant: {
-        primary: 'bg-primary text-primary-foreground hover:bg-primary/90',
-        default: 'border border-border bg-background text-foreground hover:bg-secondary',
-        secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
-        destructive: 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
-        outline: 'border border-border bg-transparent hover:bg-secondary',
-        ghost: 'hover:bg-secondary',
-        link: 'text-selected underline-offset-4 hover:underline',
+        primary:
+          'border-brand-500/75 bg-brand-400 text-foreground hover:border-brand-600 hover:bg-brand/80 dark:border-brand/30 dark:bg-brand-500 dark:hover:border-brand dark:hover:bg-brand/50',
+        default: 'border-strong bg-alternative text-foreground hover:border-stronger hover:bg-selection dark:bg-muted',
+        secondary: 'border-strong bg-surface-300 text-foreground hover:bg-surface-300/70',
+        outline: 'border-strong bg-transparent text-foreground hover:border-stronger hover:bg-selection',
+        warning: 'border-warning bg-warning text-warning-foreground hover:bg-warning/90',
+        destructive: 'border-destructive bg-destructive text-destructive-foreground hover:bg-destructive/90',
+        ghost: 'border-transparent bg-transparent text-foreground-light hover:bg-surface-200 hover:text-foreground',
+        link: 'border-transparent bg-transparent text-brand-link underline-offset-4 hover:underline',
       },
       size: {
-        tiny: 'h-6 px-2 text-xs',
-        small: 'h-7 px-2.5 text-xs',
-        medium: 'h-8 px-3',
-        large: 'h-10 px-4',
+        tiny: 'h-[26px] gap-1.5 px-2.5 text-xs',
+        small: 'h-[30px] px-3 text-xs',
+        medium: 'h-[34px] px-3 text-sm',
+        large: 'h-[42px] px-4 text-base',
       },
     },
     defaultVariants: {
@@ -58,3 +62,5 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   },
 );
 Button.displayName = 'Button';
+
+export { buttonVariants };

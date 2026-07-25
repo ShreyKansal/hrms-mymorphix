@@ -1,74 +1,305 @@
 @import "tailwindcss";
 
 /*
- * Theme bridge: the component architecture (Radix primitives + cva variants + Tailwind
- * utilities) follows the same pattern Supabase's own design system uses — this app keeps
- * Atlaskit's actual color palette and font stack instead, per explicit instruction, not
- * Supabase's brand colors. Every value below was measured from this app's real, live Atlaskit
- * rendering before the migration (Playwright + getComputedStyle against actual elements — a
- * primary Button, the sidebar's active nav item, a real TextField, a Lozenge, etc.), not
- * guessed or copied from Atlaskit's docs. `@atlaskit/*` is no longer a dependency of this app
- * (see docs/design-system/atlassian-design-system/ for what's archived from that era) — these
- * values are what's left of it, captured once and now just plain CSS.
+ * Supabase design system — token layer.
  *
- * `important` mode used to be needed here to out-cascade @atlaskit/css-reset's unlayered,
- * Emotion-injected global reset — with that dependency gone, there's nothing left to
- * out-cascade, so this is back to a plain import.
+ * The whole app is themed off Supabase's own design tokens (docs/design-system/
+ * supabase-design-system/): a neutral grayscale scale, the signature brand green (#3ecf8e),
+ * amber warning and red destructive accents, and the foreground / background-surface / border
+ * primitive families documented in getting-started/tailwind-classes.md. Nothing here is from
+ * Atlassian anymore — that design system was removed on purpose.
+ *
+ * Colors are raw HSL triplets so every utility supports opacity (bg-surface-200/80) and so a
+ * single set of `--color-*` aliases in @theme re-resolves automatically when the raw values are
+ * swapped under [data-theme="dark"]. Dark is the iconic Supabase Studio look and the default;
+ * light is fully supported. The theme lives on <html data-theme> — see index.html's no-flash
+ * init + lib/theme.ts.
+ *
+ * Legacy alias names (text-text-subtle, bg-sunken, bg-selected-bg, text-success-text, …) are
+ * kept mapped onto the Supabase families so the migration didn't need a mechanical class rename
+ * in every file at once; new/redesigned markup uses the real Supabase names
+ * (text-foreground-light, bg-surface-200, border-strong, bg-brand, text-brand-link, …).
  */
-@theme {
-  --font-sans: -apple-system, "system-ui", "Segoe UI", Roboto, Oxygen, Ubuntu, "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
 
-  /* Atlaskit's real base radius — measured 3px consistently across Button, the native
-     SelectField wrapper, and Lozenge. Not Tailwind's own 6px default. */
-  --radius-sm: 2px;
-  --radius-md: 3px;
-  --radius-lg: 4px;
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
+/* ---------------------------------------------------------------------- Light theme --- */
+:root {
+  /* Surfaces. In light theme cards/tables/panels are WHITE (surface-100 = background); the
+     hairline border does the separating, Supabase-light style. The surface steps above only
+     provide subtle hover/secondary fills. */
+  --background-default: 0 0% 100%;
+  --background-alternative: 0 0% 97%;
+  --surface-100: 0 0% 100%;
+  --surface-200: 0 0% 96%;
+  --surface-300: 0 0% 93%;
+  --background-overlay: 0 0% 100%;
+  /* Inputs are subtly filled (not white-on-white) so they read as controls on both the white
+     app background and on surface-100 cards — matches Supabase's filled input treatment. */
+  --background-control: 0 0% 96%;
+
+  /* Foreground / text */
+  --foreground-default: 0 0% 11%;
+  --foreground-light: 0 0% 32%;
+  --foreground-lighter: 0 0% 45%;
+  --foreground-muted: 0 0% 62%;
+
+  /* Borders */
+  --border-default: 0 0% 90%;
+  --border-secondary: 0 0% 93%;
+  --border-strong: 0 0% 83%;
+  --border-stronger: 0 0% 74%;
+  --border-control: 0 0% 85%;
+  --border-overlay: 0 0% 90%;
+
+  /* Shared focus-ring colour (Supabase's `ring-ring`). One neutral colour for every control —
+     variants never change it (getting-started/accessibility.md). */
+  --ring: 0 0% 55%;
+
+  /* Brand — Supabase green. brand-400 is the light-theme primary-button fill, so it stays a
+     vivid green (only a hair lighter than the 500 default), not a pale tint. */
+  --brand-200: 150 62% 92%;
+  --brand-300: 152 58% 74%;
+  --brand-400: 153 60% 57%;
+  --brand-500: 153 60% 53%;
+  --brand-default: 153 60% 53%;
+  --brand-600: 154 60% 33%;
+  --brand-button: 153 60% 53%;
+  --brand-link: 154 60% 33%;
+  --brand-foreground: 155 45% 11%;
+
+  /* Destructive — red */
+  --destructive-200: 5 90% 95%;
+  --destructive-400: 5 78% 63%;
+  --destructive-default: 5 74% 49%;
+  --destructive-600: 5 74% 42%;
+
+  /* Warning — amber */
+  --warning-200: 40 100% 91%;
+  --warning-400: 35 92% 58%;
+  --warning-default: 35 92% 50%;
+  --warning-600: 28 88% 36%;
+
+  color-scheme: light;
+}
+
+/* ----------------------------------------------------------------------- Dark theme --- */
+[data-theme="dark"] {
   /* Surfaces */
-  --color-background: #ffffff;
-  --color-foreground: #172b4d;
-  --color-sunken: #f7f8f9;
-  --color-border: #dcdfe4;
-  --color-border-input: #8590a2;
-  --color-border-focused: #388bff;
-  --color-border-danger: #e2483d;
+  --background-default: 0 0% 7%;
+  --background-alternative: 0 0% 4%;
+  --surface-100: 0 0% 9%;
+  --surface-200: 0 0% 12%;
+  --surface-300: 0 0% 16%;
+  --background-overlay: 0 0% 11%;
+  --background-control: 0 0% 12%;
 
-  /* Text */
-  --color-text-subtle: #44546f;
-  --color-text-subtlest: #8590a2;
-  --color-text-danger: #de350b;
+  /* Foreground / text */
+  --foreground-default: 0 0% 95%;
+  --foreground-light: 0 0% 74%;
+  --foreground-lighter: 0 0% 54%;
+  --foreground-muted: 0 0% 38%;
+
+  /* Borders */
+  --border-default: 0 0% 18%;
+  --border-secondary: 0 0% 14%;
+  --border-strong: 0 0% 25%;
+  --border-stronger: 0 0% 33%;
+  --border-control: 0 0% 24%;
+  --border-overlay: 0 0% 20%;
+
+  --ring: 0 0% 48%;
+
+  /* Brand — Supabase green (stays vivid on dark) */
+  --brand-200: 150 30% 16%;
+  --brand-300: 151 35% 24%;
+  --brand-400: 153 45% 40%;
+  --brand-500: 153 60% 53%;
+  --brand-default: 153 60% 53%;
+  --brand-600: 153 62% 62%;
+  --brand-button: 153 60% 53%;
+  --brand-link: 153 62% 62%;
+  --brand-foreground: 155 50% 9%;
+
+  /* Destructive — red */
+  --destructive-200: 5 42% 17%;
+  --destructive-400: 5 70% 55%;
+  --destructive-default: 5 74% 54%;
+  --destructive-600: 5 82% 69%;
+
+  /* Warning — amber */
+  --warning-200: 36 46% 15%;
+  --warning-400: 35 85% 55%;
+  --warning-default: 35 92% 55%;
+  --warning-600: 38 90% 64%;
+
+  color-scheme: dark;
+}
+
+/* --------------------------------------------------------------------- Tailwind theme --- */
+@theme {
+  /* Supabase Studio uses Inter for sans and Source Code Pro for mono (confirmed from its
+     rendered --font-sans). Falls back to the system UI stack when Inter isn't available. */
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Apple Color Emoji", "Segoe UI Emoji", sans-serif;
+  --font-mono: "Source Code Pro", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* Supabase shifts the type scale down one step from stock Tailwind: text-sm is 13px (not 14px)
+     and text-base is 14px (not 16px). Measured directly off the design system's input, whose
+     `md:text-sm` renders at 13px. Keeping the default line-height ratios (they scale with size);
+     larger steps (lg/xl/2xl/3xl) stay at Tailwind's defaults for headings. */
+  --text-sm: 0.8125rem; /* 13px */
+  --text-base: 0.875rem; /* 14px */
+
+  /* Supabase corner radius is tight — 6px on controls, 8px on cards. */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+
+  /* Surfaces / backgrounds */
+  --color-background: hsl(var(--background-default));
+  --color-surface-100: hsl(var(--surface-100));
+  --color-surface-200: hsl(var(--surface-200));
+  --color-surface-300: hsl(var(--surface-300));
+  --color-alternative: hsl(var(--background-alternative));
+  --color-overlay: hsl(var(--background-overlay));
+  /* Default-button surfaces (Supabase `bg-muted` dark fill + `bg-selection` hover). */
+  --color-muted: hsl(var(--surface-200));
+  --color-selection: hsl(var(--surface-300));
+  /* legacy aliases (input fill is `bg-foreground/[.026]` applied directly on the control) */
+  --color-sunken: hsl(var(--surface-100));
+  --color-secondary-foreground: hsl(var(--foreground-default));
+  --color-neutral-hover: hsl(var(--surface-200));
+  --color-selected-bg: hsl(var(--brand-200));
+
+  /* Foreground / text */
+  --color-foreground: hsl(var(--foreground-default));
+  --color-foreground-light: hsl(var(--foreground-light));
+  --color-foreground-lighter: hsl(var(--foreground-lighter));
+  --color-foreground-muted: hsl(var(--foreground-muted));
+  /* legacy aliases */
+  --color-text-subtle: hsl(var(--foreground-light));
+  --color-text-subtlest: hsl(var(--foreground-lighter));
   --color-text-inverse: #ffffff;
+  --color-text-danger: hsl(var(--destructive-600));
 
-  /* Primary (button) blue — #0052cc, measured directly off a live primary Button.
-     Distinct from the "selected/link" blue below; Atlaskit genuinely uses two blues. */
-  --color-primary: #0052cc;
-  --color-primary-foreground: #ffffff;
+  /* Borders. Tailwind v4 has ONE colour namespace, so the border-color utility for a colour key
+     `k` is `border-k`. These are therefore BARE keys (default / secondary / strong / stronger /
+     control / button) — the same names Supabase's classes use (`border-default`, `border-strong`,
+     `border-control`, read-only `border-button`) — so they resolve to real border greys instead
+     of falling back to currentColor. `--color-border` is kept for `bg-border` (dividers). */
+  --color-border: hsl(var(--border-default));
+  --color-default: hsl(var(--border-default));
+  --color-secondary: hsl(var(--border-secondary));
+  --color-strong: hsl(var(--border-strong));
+  --color-stronger: hsl(var(--border-stronger));
+  --color-control: hsl(var(--border-control));
+  --color-button: hsl(var(--border-strong));
+  --color-input: hsl(var(--border-control));
+  --color-ring: hsl(var(--ring));
+  --color-border-focused: hsl(var(--brand-default));
+  --color-border-danger: hsl(var(--destructive-default));
 
-  /* Selected/link blue — #0c66e4, measured off the sidebar's active nav item. */
-  --color-selected: #0c66e4;
-  --color-selected-bg: #e9f2ff;
+  /* Brand */
+  --color-brand: hsl(var(--brand-default));
+  --color-brand-200: hsl(var(--brand-200));
+  --color-brand-300: hsl(var(--brand-300));
+  --color-brand-400: hsl(var(--brand-400));
+  --color-brand-500: hsl(var(--brand-500));
+  --color-brand-600: hsl(var(--brand-600));
+  --color-brand-button: hsl(var(--brand-button));
+  --color-brand-link: hsl(var(--brand-link));
+  --color-brand-foreground: hsl(var(--brand-foreground));
+  /* legacy aliases: primary / selected == brand */
+  --color-primary: hsl(var(--brand-button));
+  --color-primary-foreground: hsl(var(--brand-foreground));
+  --color-selected: hsl(var(--brand-link));
 
-  /* Secondary / neutral */
-  --color-secondary: #f1f2f4;
-  --color-secondary-foreground: #172b4d;
-  --color-neutral-hover: #f1f2f4;
-
-  /* Status */
-  --color-success-bg: #e3fcef;
-  --color-success-text: #216e4e;
-  --color-warning-bg: #fff7d6;
-  --color-warning-text: #974f0c;
-  --color-danger-bg: #ffedeb;
-  --color-danger-text: #ae2e24;
-
-  /* Destructive action (buttons) — Atlaskit's R400 red. */
-  --color-destructive: #de350b;
+  /* Destructive */
+  --color-destructive: hsl(var(--destructive-default));
+  --color-destructive-200: hsl(var(--destructive-200));
+  --color-destructive-400: hsl(var(--destructive-400));
+  --color-destructive-600: hsl(var(--destructive-600));
   --color-destructive-foreground: #ffffff;
+
+  /* Warning */
+  --color-warning: hsl(var(--warning-default));
+  --color-warning-200: hsl(var(--warning-200));
+  --color-warning-400: hsl(var(--warning-400));
+  --color-warning-600: hsl(var(--warning-600));
+  --color-warning-foreground: #ffffff;
+
+  /* Status shorthands (badges / callouts) */
+  --color-success-bg: hsl(var(--brand-200));
+  --color-success-text: hsl(var(--brand-600));
+  --color-warning-bg: hsl(var(--warning-200));
+  --color-warning-text: hsl(var(--warning-600));
+  --color-danger-bg: hsl(var(--destructive-200));
+  --color-danger-text: hsl(var(--destructive-600));
+}
+
+/* -------------------------------------------------------------------------------- Base --- */
+/* Default border colour for every element (Tailwind v4 defaults borders to currentColor, which
+   would render dark). This makes a bare `border` a subtle grey; specific `border-strong` /
+   `border-control` / brand / destructive classes override it as needed. */
+*,
+::before,
+::after {
+  border-color: hsl(var(--border-default));
 }
 
 body {
   font-family: var(--font-sans);
   font-size: 14px;
-  color: var(--color-foreground);
-  background-color: var(--color-background);
+  line-height: 1.5;
+  color: hsl(var(--foreground-default));
+  background-color: hsl(var(--background-default));
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background-color: hsl(var(--brand-500) / 0.3);
+}
+
+/*
+ * Supabase's shared focus indicator (getting-started/accessibility.md's `focus-ring` recipe:
+ * outline-hidden + focus-visible:ring-2 ring-ring ring-offset-2 ring-offset-background). It's an
+ * offset ring — a 2px gap in the app background, then a 2px ring in the neutral --ring colour.
+ * One indicator for every control; variants never change its colour. Applied via the `focus-ring`
+ * class on inputs, selects, and buttons.
+ */
+@utility focus-ring {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  &:focus-visible {
+    box-shadow:
+      0 0 0 2px hsl(var(--background-default)),
+      0 0 0 4px hsl(var(--ring));
+  }
+}
+
+/* Green checkboxes/radios/range to match the brand. */
+input[type="checkbox"],
+input[type="radio"],
+input[type="range"] {
+  accent-color: hsl(var(--brand-500));
+}
+
+/* Thin, theme-aware scrollbars — Studio uses restrained, low-contrast scrollbars. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--border-stronger)) transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--border-stronger));
+  border-radius: 9999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background-color: hsl(var(--foreground-muted));
 }

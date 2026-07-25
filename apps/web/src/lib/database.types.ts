@@ -143,6 +143,58 @@ export type Document = {
   uploaded_at: string;
 };
 
+export type LeaveType = {
+  id: string;
+  tenant_id: string;
+  name: string;
+  code: string;
+  color: string;
+  is_paid: boolean;
+  accrual_method: 'none' | 'monthly' | 'annual';
+  annual_quota: number;
+  allow_half_day: boolean;
+  allow_negative: boolean;
+  negative_cap: number;
+  carry_forward_cap: number | null;
+  requires_reason: boolean;
+  is_active: boolean;
+  created_at: string;
+};
+
+export type LeaveBalance = {
+  id: string;
+  tenant_id: string;
+  employee_id: string;
+  leave_type_id: string;
+  year: number;
+  entitled: number;
+  adjustment: number;
+  taken: number;
+  pending: number;
+  adjustment_reason: string | null;
+  adjusted_by: string | null;
+  adjusted_at: string | null;
+  created_at: string;
+};
+
+export type LeaveRequest = {
+  id: string;
+  tenant_id: string;
+  employee_id: string;
+  leave_type_id: string;
+  start_date: string;
+  end_date: string;
+  day_part: 'full' | 'first_half' | 'second_half';
+  days: number;
+  reason: string | null;
+  status: 'pending' | 'approved' | 'rejected' | 'cancelled' | 'withdrawn';
+  applied_by: string | null;
+  decided_by: string | null;
+  decided_at: string | null;
+  decision_note: string | null;
+  created_at: string;
+};
+
 // Minimal shape satisfying @supabase/supabase-js's generic Database type parameter —
 // enough for typed .from()/.rpc() calls without hand-writing the full generated schema.
 // Every table needs `Relationships` and the schema needs `Views`, even if empty — the
@@ -431,6 +483,146 @@ export type Database = {
         };
         Relationships: [];
       };
+      leave_types: {
+        Row: LeaveType;
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          name: string;
+          code: string;
+          color?: string;
+          is_paid?: boolean;
+          accrual_method?: 'none' | 'monthly' | 'annual';
+          annual_quota?: number;
+          allow_half_day?: boolean;
+          allow_negative?: boolean;
+          negative_cap?: number;
+          carry_forward_cap?: number | null;
+          requires_reason?: boolean;
+          is_active?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string;
+          name?: string;
+          code?: string;
+          color?: string;
+          is_paid?: boolean;
+          accrual_method?: 'none' | 'monthly' | 'annual';
+          annual_quota?: number;
+          allow_half_day?: boolean;
+          allow_negative?: boolean;
+          negative_cap?: number;
+          carry_forward_cap?: number | null;
+          requires_reason?: boolean;
+          is_active?: boolean;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      leave_balances: {
+        Row: LeaveBalance;
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          employee_id: string;
+          leave_type_id: string;
+          year: number;
+          entitled?: number;
+          adjustment?: number;
+          taken?: number;
+          pending?: number;
+          adjustment_reason?: string | null;
+          adjusted_by?: string | null;
+          adjusted_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string;
+          employee_id?: string;
+          leave_type_id?: string;
+          year?: number;
+          entitled?: number;
+          adjustment?: number;
+          taken?: number;
+          pending?: number;
+          adjustment_reason?: string | null;
+          adjusted_by?: string | null;
+          adjusted_at?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'leave_balances_leave_type_id_fkey';
+            columns: ['leave_type_id'];
+            isOneToOne: false;
+            referencedRelation: 'leave_types';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'leave_balances_employee_id_fkey';
+            columns: ['employee_id'];
+            isOneToOne: false;
+            referencedRelation: 'employees';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      leave_requests: {
+        Row: LeaveRequest;
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          employee_id: string;
+          leave_type_id: string;
+          start_date: string;
+          end_date: string;
+          day_part?: 'full' | 'first_half' | 'second_half';
+          days: number;
+          reason?: string | null;
+          status?: 'pending' | 'approved' | 'rejected' | 'cancelled' | 'withdrawn';
+          applied_by?: string | null;
+          decided_by?: string | null;
+          decided_at?: string | null;
+          decision_note?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string;
+          employee_id?: string;
+          leave_type_id?: string;
+          start_date?: string;
+          end_date?: string;
+          day_part?: 'full' | 'first_half' | 'second_half';
+          days?: number;
+          reason?: string | null;
+          status?: 'pending' | 'approved' | 'rejected' | 'cancelled' | 'withdrawn';
+          applied_by?: string | null;
+          decided_by?: string | null;
+          decided_at?: string | null;
+          decision_note?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'leave_requests_leave_type_id_fkey';
+            columns: ['leave_type_id'];
+            isOneToOne: false;
+            referencedRelation: 'leave_types';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'leave_requests_employee_id_fkey';
+            columns: ['employee_id'];
+            isOneToOne: false;
+            referencedRelation: 'employees';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -477,6 +669,53 @@ export type Database = {
       accept_pending_invitation: {
         Args: Record<string, never>;
         Returns: { tenant_id: string; role: 'admin' | 'employee' }[];
+      };
+      upsert_leave_type: {
+        Args: {
+          p_name: string;
+          p_code: string;
+          p_annual_quota: number;
+          p_id?: string | null;
+          p_color?: string;
+          p_is_paid?: boolean;
+          p_accrual_method?: 'none' | 'monthly' | 'annual';
+          p_allow_half_day?: boolean;
+          p_allow_negative?: boolean;
+          p_negative_cap?: number;
+          p_carry_forward_cap?: number | null;
+          p_requires_reason?: boolean;
+          p_is_active?: boolean;
+        };
+        Returns: LeaveType;
+      };
+      apply_leave: {
+        Args: {
+          p_employee_id: string;
+          p_leave_type_id: string;
+          p_start_date: string;
+          p_end_date: string;
+          p_day_part?: 'full' | 'first_half' | 'second_half';
+          p_reason?: string | null;
+        };
+        Returns: LeaveRequest;
+      };
+      decide_leave: {
+        Args: { p_request_id: string; p_approve: boolean; p_note?: string | null };
+        Returns: LeaveRequest;
+      };
+      cancel_leave: {
+        Args: { p_request_id: string };
+        Returns: LeaveRequest;
+      };
+      adjust_leave_balance: {
+        Args: {
+          p_employee_id: string;
+          p_leave_type_id: string;
+          p_year: number;
+          p_delta: number;
+          p_reason: string;
+        };
+        Returns: LeaveBalance;
       };
     };
   };

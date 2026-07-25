@@ -5,6 +5,18 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>HRMS</title>
+    <!-- Apply the saved theme before first paint so there's no light/dark flash. Light is the
+         default; lib/theme.ts keeps localStorage + <html> in sync. -->
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem('hrms-theme');
+          document.documentElement.setAttribute('data-theme', t === 'dark' ? 'dark' : 'light');
+        } catch (e) {
+          document.documentElement.setAttribute('data-theme', 'light');
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

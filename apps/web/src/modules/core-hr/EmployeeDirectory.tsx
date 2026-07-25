@@ -1,14 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
+import { Link, useNavigate } from 'react-router-dom';
+import { Check, Copy, Download, MoreHorizontal, Plus, Search, UserRound, Users, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import { avatarColor, initials } from '../../lib/avatar';
+import { Avatar } from '../../components/ui/avatar';
 import { useAuthStore } from '../auth/store';
 import { useEmployeesStore, type EmployeeWithCurrentAssignment } from './store';
 import type { Employee } from '../../lib/database.types';
 import { Button } from '../../components/ui/button';
-import { Input } from '../../components/ui/input';
+import { InputGroup, InputGroupInput, InputGroupAddon } from '../../components/ui/input-group';
+import { Card } from '../../components/ui/card';
+import { Alert } from '../../components/ui/alert';
+import { PageContainer, PageHeader, EmptyState, Skeleton } from '../../components/ui/page';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell, SortableHead } from '../../components/ui/table';
+import { TablePagination } from '../../components/ui/pagination';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '../../components/ui/dropdown-menu';
 import { cn } from '../../lib/ui/cn';
 
 type SortKey = 'name' | 'code' | 'designation' | 'department' | 'status';
@@ -29,23 +34,28 @@ function sortValue(emp: EmployeeWithCurrentAssignment, key: SortKey): string {
   }
 }
 
-// 'draft' isn't offered here — create_employee() no longer produces it (see
-// docs/build/03-ui-patterns.md, the Create Employee wizard write-up), it's specifically for the
-// not-yet-built Module 3 onboarding flow, so it shouldn't be a state anyone picks by hand.
+// 'draft' isn't offered here — create_employee() no longer produces it (it's for the not-yet-
+// built onboarding flow), so it shouldn't be a state anyone picks by hand.
 const EDITABLE_STATUSES: Employee['status'][] = ['active', 'on_leave', 'suspended', 'separation_initiated', 'separated'];
-const STATUS_DOT_COLOR: Record<Employee['status'], string> = {
-  draft: 'bg-text-subtlest',
-  active: 'bg-success-text',
-  on_leave: 'bg-warning-text',
-  suspended: 'bg-destructive',
-  separation_initiated: 'bg-destructive',
-  separated: 'bg-text-subtle',
+
+// One source of truth for how each status looks — the inline dot, the distribution bar segment,
+// and the summary all read from here.
+const STATUS_META: Record<Employee['status'], { label: string; dot: string; bar: string }> = {
+  draft: { label: 'Draft', dot: 'bg-foreground-muted', bar: 'hsl(var(--foreground-muted))' },
+  active: { label: 'Active', dot: 'bg-brand', bar: 'hsl(var(--brand-500))' },
+  on_leave: { label: 'On leave', dot: 'bg-warning', bar: 'hsl(var(--warning-default))' },
+  suspended: { label: 'Suspended', dot: 'bg-destructive', bar: 'hsl(var(--destructive-default))' },
+  separation_initiated: { label: 'Separation initiated', dot: 'bg-warning-600', bar: 'hsl(var(--warning-600))' },
+  separated: { label: 'Separated', dot: 'bg-foreground-muted', bar: 'hsl(var(--foreground-muted))' },
 };
 
+function statusLabel(s: Employee['status']) {
+  return STATUS_META[s]?.label ?? s.replace(/_/g, ' ');
+}
+
 // Inline-editable status (colored dot + text, click to change) rather than a static read-only
-// badge — the Qubit reference this table is benchmarked against treats status as something you
-// act on from the list, not just read. Admin-gated the same way every other write action in
-// this app is.
+// badge — status is something you act on from the list, not just read. Admin-gated the same way
+// every other write action is.
 function StatusCell({ employee, canEdit }: { employee: EmployeeWithCurrentAssignment; canEdit: boolean }) {
   const fetchEmployees = useEmployeesStore((s) => s.fetchEmployees);
   const [editing, setEditing] = useState(false);
@@ -61,18 +71,16 @@ function StatusCell({ employee, canEdit }: { employee: EmployeeWithCurrentAssign
         onChange={async (e) => {
           setSaving(true);
           await supabase.from('employees').update({ status: e.target.value as Employee['status'] }).eq('id', employee.id);
-          // Don't wait on Realtime to refresh the row — a status change the user just made
-          // should be reflected the instant it's saved, not whenever the subscription
-          // round-trip happens to land.
+          // Reflect the change immediately rather than waiting on the Realtime round-trip.
           await fetchEmployees();
           setSaving(false);
           setEditing(false);
         }}
-        className="h-7 rounded border border-border-focused text-[13px]"
+        className="h-7 rounded-md border border-brand bg-foreground/[0.026] px-2 text-[13px] text-foreground outline-none"
       >
         {EDITABLE_STATUSES.map((s) => (
           <option key={s} value={s}>
-            {s.replace('_', ' ')}
+            {statusLabel(s)}
           </option>
         ))}
       </select>
@@ -83,25 +91,59 @@ function StatusCell({ employee, canEdit }: { employee: EmployeeWithCurrentAssign
     <button
       onClick={() => canEdit && setEditing(true)}
       disabled={!canEdit}
-      className={cn('flex items-center gap-1.5 bg-transparent p-0 font-sans', canEdit ? 'cursor-pointer' : 'cursor-default')}
+      className={cn(
+        'flex items-center gap-2 rounded-md px-1.5 py-1 -mx-1.5 transition-colors',
+        canEdit ? 'cursor-pointer hover:bg-surface-200' : 'cursor-default',
+      )}
+      title={canEdit ? 'Click to change status' : undefined}
     >
-      <span className={cn('h-2 w-2 shrink-0 rounded-full', STATUS_DOT_COLOR[employee.status])} />
-      <span className="text-[13px] capitalize text-foreground">{employee.status.replace('_', ' ')}</span>
+      <span className={cn('h-2 w-2 shrink-0 rounded-full', STATUS_META[employee.status]?.dot ?? 'bg-foreground-muted')} />
+      <span className="text-[13px] text-foreground">{statusLabel(employee.status)}</span>
     </button>
   );
 }
 
 function NameCell({ employee }: { employee: EmployeeWithCurrentAssignment }) {
   return (
-    <Link to={`/employees/${employee.id}`} className="flex items-center gap-2 text-selected hover:underline">
-      <span
-        className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full text-[10px] font-semibold text-text-inverse"
-        style={{ backgroundColor: avatarColor(employee.legal_name) }}
-      >
-        {initials(employee.legal_name)}
-      </span>
-      {employee.legal_name}
+    <Link to={`/employees/${employee.id}`} className="group flex items-center gap-2.5">
+      <Avatar name={employee.legal_name} size="xs" />
+      <span className="font-medium text-foreground group-hover:text-brand-link group-hover:underline">{employee.legal_name}</span>
     </Link>
+  );
+}
+
+function RowActions({ employee }: { employee: EmployeeWithCurrentAssignment }) {
+  const navigate = useNavigate();
+  const [copied, setCopied] = useState(false);
+
+  return (
+    <DropdownMenu onOpenChange={(open) => !open && setCopied(false)}>
+      <DropdownMenuTrigger asChild>
+        <button
+          onClick={(e) => e.stopPropagation()}
+          aria-label={`Actions for ${employee.legal_name}`}
+          className="flex h-7 w-7 items-center justify-center rounded-md text-foreground-lighter transition-colors hover:bg-surface-200 hover:text-foreground"
+        >
+          <MoreHorizontal className="h-4 w-4" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onSelect={() => navigate(`/employees/${employee.id}`)}>
+          <UserRound className="h-3.5 w-3.5" />
+          View profile
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onSelect={(e) => {
+            e.preventDefault();
+            navigator.clipboard.writeText(employee.employee_code);
+            setCopied(true);
+          }}
+        >
+          {copied ? <Check className="h-3.5 w-3.5 text-brand" /> : <Copy className="h-3.5 w-3.5" />}
+          {copied ? 'Copied' : 'Copy employee ID'}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -111,13 +153,9 @@ function toCsvValue(value: string): string {
 
 const ROWS_PER_PAGE = 20;
 
-// docs/build/build-guides/01-core-hr-employee-information.md screen #1 —
-// "keep row actions minimal ... click a row -> Employee Detail page."
-// Now backed by Zustand + Supabase Realtime instead of TanStack Query + REST polling —
-// the list updates live on any insert/update to this tenant's employees, from any tab.
-// "Add employee" is a Link to a full page (/employees/new), not a Modal — see
-// docs/build/03-ui-patterns.md §2 for why: a 5-step, multi-category, infrequent task fails
-// both NN/g's and Smashing Magazine's thresholds for staying a Modal.
+// docs/build/build-guides/01-core-hr-employee-information.md screen #1. Backed by Zustand +
+// Supabase Realtime, so the list updates live on any insert/update to this tenant's employees.
+// "Add employee" is a full page (/employees/new), not a modal — a multi-step, infrequent task.
 export default function EmployeeDirectory() {
   const role = useAuthStore((s) => s.role);
   const { employees, loading, error, fetchEmployees, subscribeToChanges, unsubscribe } = useEmployeesStore();
@@ -163,7 +201,7 @@ export default function EmployeeDirectory() {
   const pageCount = Math.max(1, Math.ceil(visibleEmployees.length / ROWS_PER_PAGE));
   const pagedEmployees = visibleEmployees.slice((page - 1) * ROWS_PER_PAGE, page * ROWS_PER_PAGE);
 
-  // Clear out selections that scrolled out of the filtered/sorted view — keeping them would let
+  // Clear selections that scrolled out of the filtered/sorted view — keeping them would let
   // "Export CSV" silently include rows the user can no longer see.
   useEffect(() => {
     const visibleIds = new Set(visibleEmployees.map((e) => e.id));
@@ -201,8 +239,6 @@ export default function EmployeeDirectory() {
     }
   };
 
-  // The first genuinely real bulk action — a client-side CSV export needs no new backend
-  // surface and no new write-permission questions, unlike e.g. bulk status change would.
   const exportSelectedCsv = () => {
     const selected = visibleEmployees.filter((e) => selectedIds.has(e.id));
     const header = ['Name', 'Employee ID', 'Designation', 'Department', 'Status'].map(toCsvValue).join(',');
@@ -221,132 +257,173 @@ export default function EmployeeDirectory() {
     URL.revokeObjectURL(url);
   };
 
-  // A genuine, if simple, use of Recharts — headcount by status.
-  const statusCounts = employees.reduce<Record<string, number>>((acc, e) => {
-    acc[e.status] = (acc[e.status] ?? 0) + 1;
-    return acc;
-  }, {});
-  const chartData = Object.entries(statusCounts).map(([status, count]) => ({ status, count }));
+  const hasNoEmployees = !loading && employees.length === 0;
 
   return (
-    <div className="mx-auto max-w-[1296px] p-6">
-      <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-2xl font-medium text-foreground">Employee Directory</h1>
-        {role === 'admin' && (
-          <Link to="/employees/new">
-            <Button variant="primary">Add employee</Button>
-          </Link>
-        )}
-      </div>
+    <PageContainer size="full">
+      <PageHeader
+        title="Employees"
+        description="Everyone in your organisation, with their current role and status."
+      />
 
-      {error && <p className="text-sm text-text-danger">Could not load employees: {error}</p>}
-
-      {chartData.length > 0 && (
-        <div className="mb-6 h-[120px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData} layout="vertical">
-              <XAxis type="number" allowDecimals={false} domain={[0, 'dataMax']} hide />
-              <YAxis type="category" dataKey="status" width={100} />
-              <Tooltip />
-              <Bar dataKey="count" fill="#0052CC" radius={[0, 4, 4, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+      {error && (
+        <Alert variant="destructive" title="Couldn't load employees" className="mb-6">
+          {error}
+        </Alert>
       )}
 
-      <div className="mb-2 flex items-center justify-between gap-4">
-        <div className="w-[280px]">
-          <Input placeholder="Filter this list…" value={filterText} onChange={(e) => setFilterText(e.currentTarget.value)} />
-        </div>
-        {selectedIds.size > 0 && (
-          <div className="flex items-center gap-3 text-sm text-text-subtle">
-            <span>{selectedIds.size} selected</span>
-            <Button variant="ghost" size="small" onClick={exportSelectedCsv}>
-              Export CSV
-            </Button>
-            <Button variant="ghost" size="small" onClick={() => setSelectedIds(new Set())}>
-              Clear
-            </Button>
+      {hasNoEmployees ? (
+        <EmptyState
+          icon={<Users className="h-5 w-5" />}
+          title="No employees yet"
+          description="Add your first team member to start building your directory."
+          action={
+            role === 'admin' && (
+              <Button asChild variant="primary" size="small">
+                <Link to="/employees/new">
+                  <Plus className="h-4 w-4" />
+                  Add employee
+                </Link>
+              </Button>
+            )
+          }
+        />
+      ) : (
+        <>
+          {/* Filter row — search left, actions right (design system layout.md List pattern). */}
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+            <InputGroup size="small" className="w-full max-w-xs">
+              <InputGroupAddon>
+                <Search />
+              </InputGroupAddon>
+              <InputGroupInput
+                placeholder="Filter by name, ID, role…"
+                value={filterText}
+                onChange={(e) => setFilterText(e.currentTarget.value)}
+              />
+            </InputGroup>
+            <div className="flex items-center gap-2">
+              {selectedIds.size > 0 && (
+                <>
+                  <span className="text-sm tabular-nums text-foreground-light">{selectedIds.size} selected</span>
+                  <Button variant="default" size="small" onClick={exportSelectedCsv}>
+                    <Download className="h-3.5 w-3.5" />
+                    Export CSV
+                  </Button>
+                  <Button variant="ghost" size="small" onClick={() => setSelectedIds(new Set())}>
+                    <X className="h-3.5 w-3.5" />
+                    Clear
+                  </Button>
+                </>
+              )}
+              {role === 'admin' && (
+                <Button asChild variant="primary" size="small">
+                  <Link to="/employees/new">
+                    <Plus className="h-4 w-4" />
+                    Add employee
+                  </Link>
+                </Button>
+              )}
+            </div>
           </div>
-        )}
-      </div>
 
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-8">
-              <input type="checkbox" checked={allPageSelected} onChange={toggleAll} aria-label="Select all employees" className="cursor-pointer" />
-            </TableHead>
-            <SortableHead active={sortKey === 'name'} order={sortKey === 'name' ? sortOrder : null} onClick={() => toggleSort('name')}>
-              Name
-            </SortableHead>
-            <SortableHead active={sortKey === 'code'} order={sortKey === 'code' ? sortOrder : null} onClick={() => toggleSort('code')}>
-              Employee ID
-            </SortableHead>
-            <SortableHead active={sortKey === 'designation'} order={sortKey === 'designation' ? sortOrder : null} onClick={() => toggleSort('designation')}>
-              Designation
-            </SortableHead>
-            <SortableHead active={sortKey === 'department'} order={sortKey === 'department' ? sortOrder : null} onClick={() => toggleSort('department')}>
-              Department
-            </SortableHead>
-            <SortableHead active={sortKey === 'status'} order={sortKey === 'status' ? sortOrder : null} onClick={() => toggleSort('status')}>
-              Status
-            </SortableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {loading ? (
-            <TableRow>
-              <TableCell colSpan={6} className="py-6 text-center text-text-subtlest">
-                Loading…
-              </TableCell>
-            </TableRow>
-          ) : pagedEmployees.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={6} className="py-6 text-center text-text-subtlest">
-                No employees yet — add your first one to get started.
-              </TableCell>
-            </TableRow>
-          ) : (
-            pagedEmployees.map((emp) => (
-              <TableRow key={emp.id}>
-                <TableCell>
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.has(emp.id)}
-                    onChange={() => toggleOne(emp.id)}
-                    aria-label={`Select ${emp.legal_name}`}
-                    className="cursor-pointer"
-                  />
-                </TableCell>
-                <TableCell>
-                  <NameCell employee={emp} />
-                </TableCell>
-                <TableCell>{emp.employee_code}</TableCell>
-                <TableCell>{emp.employment_assignments[0]?.designations?.title ?? '—'}</TableCell>
-                <TableCell>{emp.employment_assignments[0]?.departments?.name ?? '—'}</TableCell>
-                <TableCell>
-                  <StatusCell employee={emp} canEdit={role === 'admin'} />
-                </TableCell>
-              </TableRow>
-            ))
-          )}
-        </TableBody>
-      </Table>
+          <Card className="overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="w-10 pr-0">
+                    <input
+                      type="checkbox"
+                      checked={allPageSelected}
+                      onChange={toggleAll}
+                      aria-label="Select all employees on this page"
+                      className="cursor-pointer align-middle"
+                    />
+                  </TableHead>
+                  <SortableHead active={sortKey === 'name'} order={sortKey === 'name' ? sortOrder : null} onClick={() => toggleSort('name')}>
+                    Name
+                  </SortableHead>
+                  <SortableHead active={sortKey === 'code'} order={sortKey === 'code' ? sortOrder : null} onClick={() => toggleSort('code')}>
+                    Employee ID
+                  </SortableHead>
+                  <SortableHead active={sortKey === 'designation'} order={sortKey === 'designation' ? sortOrder : null} onClick={() => toggleSort('designation')}>
+                    Designation
+                  </SortableHead>
+                  <SortableHead active={sortKey === 'department'} order={sortKey === 'department' ? sortOrder : null} onClick={() => toggleSort('department')}>
+                    Department
+                  </SortableHead>
+                  <SortableHead active={sortKey === 'status'} order={sortKey === 'status' ? sortOrder : null} onClick={() => toggleSort('status')}>
+                    Status
+                  </SortableHead>
+                  <TableHead className="w-10" />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {loading && employees.length === 0 ? (
+                  Array.from({ length: 6 }).map((_, i) => (
+                    <TableRow key={i} className="hover:bg-transparent">
+                      <TableCell className="pr-0"><Skeleton className="h-4 w-4" /></TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2.5">
+                          <Skeleton className="h-6 w-6 rounded-full" />
+                          <Skeleton className="h-4 w-40" />
+                        </div>
+                      </TableCell>
+                      <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                      <TableCell />
+                    </TableRow>
+                  ))
+                ) : pagedEmployees.length === 0 ? (
+                  <TableRow className="hover:bg-transparent">
+                    <TableCell colSpan={7} className="py-10 text-center">
+                      <p className="text-sm text-foreground">No matches</p>
+                      <p className="mt-0.5 text-sm text-foreground-lighter">
+                        No employees match “{filterText.trim()}”. Try a different search.
+                      </p>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  pagedEmployees.map((emp) => (
+                    <TableRow key={emp.id}>
+                      <TableCell className="pr-0">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(emp.id)}
+                          onChange={() => toggleOne(emp.id)}
+                          aria-label={`Select ${emp.legal_name}`}
+                          className="cursor-pointer align-middle"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <NameCell employee={emp} />
+                      </TableCell>
+                      <TableCell className="font-mono text-xs text-foreground-lighter">{emp.employee_code}</TableCell>
+                      <TableCell>{emp.employment_assignments[0]?.designations?.title ?? '—'}</TableCell>
+                      <TableCell>{emp.employment_assignments[0]?.departments?.name ?? '—'}</TableCell>
+                      <TableCell>
+                        <StatusCell employee={emp} canEdit={role === 'admin'} />
+                      </TableCell>
+                      <TableCell className="pl-0">
+                        <RowActions employee={emp} />
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </Card>
 
-      {pageCount > 1 && (
-        <div className="mt-3 flex items-center justify-end gap-3 text-sm text-text-subtle">
-          <Button variant="ghost" size="small" disabled={page === 1} onClick={() => setPage((p) => p - 1)}>
-            Previous
-          </Button>
-          <span>
-            Page {page} of {pageCount}
-          </span>
-          <Button variant="ghost" size="small" disabled={page === pageCount} onClick={() => setPage((p) => p + 1)}>
-            Next
-          </Button>
-        </div>
+          <div className="mt-3 flex items-center justify-between gap-3 text-sm text-foreground-lighter">
+            <span className="tabular-nums">
+              {visibleEmployees.length} {visibleEmployees.length === 1 ? 'employee' : 'employees'}
+            </span>
+            <TablePagination page={page} pageCount={pageCount} onPageChange={setPage} />
+          </div>
+        </>
       )}
-    </div>
+    </PageContainer>
   );
 }

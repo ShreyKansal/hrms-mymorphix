@@ -9,6 +9,7 @@ import CreateEmployee from './modules/core-hr/CreateEmployee';
 import EmployeeDetail from './modules/core-hr/EmployeeDetail';
 import OrgChart from './modules/core-hr/OrgChart';
 import OrgManagement from './modules/org-management/OrgManagement';
+import LeaveManagement from './modules/leave/LeaveManagement';
 import Team from './modules/roles-permissions/Team';
 import AppShell from './lib/AppShell';
 
@@ -59,6 +60,7 @@ export default function App() {
           <Route path="/employees/new" element={<CreateEmployee />} />
           <Route path="/employees/:id" element={<EmployeeDetail />} />
           <Route path="/organisation" element={<OrgManagement />} />
+          <Route path="/leave" element={<LeaveManagement />} />
           <Route path="/org-chart" element={<OrgChart />} />
           <Route path="/team" element={<Team />} />
         </Route>

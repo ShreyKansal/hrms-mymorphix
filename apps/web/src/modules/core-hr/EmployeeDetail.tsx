@@ -1,14 +1,25 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { usePageTitleStore } from '../../lib/pageTitleStore';
-import { avatarColor, initials } from '../../lib/avatar';
+import { Avatar } from '../../components/ui/avatar';
 import type { Employee, EmploymentAssignment } from '../../lib/database.types';
-import { Badge } from '../../components/ui/badge';
+import { Badge, type BadgeProps } from '../../components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/tabs';
+import { PageContainer, EmptyState, Skeleton } from '../../components/ui/page';
 import ProfileTab from './ProfileTab';
 import EmploymentTab from './EmploymentTab';
 import DocumentsTab from './DocumentsTab';
+
+const STATUS_BADGE: Record<Employee['status'], { variant: BadgeProps['variant']; label: string }> = {
+  draft: { variant: 'default', label: 'Draft' },
+  active: { variant: 'success', label: 'Active' },
+  on_leave: { variant: 'warning', label: 'On leave' },
+  suspended: { variant: 'destructive', label: 'Suspended' },
+  separation_initiated: { variant: 'warning', label: 'Separation initiated' },
+  separated: { variant: 'default', label: 'Separated' },
+};
 
 export default function EmployeeDetail() {
   const { id } = useParams<{ id: string }>();
@@ -17,9 +28,6 @@ export default function EmployeeDetail() {
   const [loading, setLoading] = useState(true);
 
   const fetchAssignments = async (employeeId: string) => {
-    // manager:employees!manager_id(...) — same disambiguation as employeesStore.ts's
-    // !employee_id hint: employment_assignments has two FKs to employees, so an unhinted
-    // embed of "employees" here is ambiguous between employee_id and manager_id.
     const { data: history } = await supabase
       .from('employment_assignments')
       .select('*, departments(*), designations(*), grades(*), manager:employees!manager_id(id, legal_name)')
@@ -32,9 +40,6 @@ export default function EmployeeDetail() {
     if (!id) return;
     (async () => {
       setLoading(true);
-      // .maybeSingle(), not .single(): a bad/stale URL (deleted employee, wrong tenant)
-      // legitimately resolves to zero rows — the "Not found" branch below already handles
-      // that. .single() would log a 406 console error for what's a normal UI state.
       const { data: emp } = await supabase.from('employees').select('*').eq('id', id).maybeSingle();
       setEmployee(emp);
       await fetchAssignments(id);
@@ -43,31 +48,60 @@ export default function EmployeeDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  // Feeds AppShell's breadcrumb — the last segment on this dynamic route is this employee's
-  // actual name, not a generic label, and AppShell shouldn't need its own duplicate fetch just
-  // to know it. Cleared on unmount so a stale name doesn't flash on the next page.
   useEffect(() => {
     usePageTitleStore.getState().setTitle(employee?.legal_name ?? null);
     return () => usePageTitleStore.getState().setTitle(null);
   }, [employee]);
 
-  if (loading) return <p className="p-6 text-text-subtle">Loading…</p>;
-  if (!employee) return <p className="p-6 text-text-subtle">Not found.</p>;
+  if (loading) {
+    return (
+      <PageContainer>
+        <div className="mb-8 flex items-center gap-4">
+          <Skeleton className="h-16 w-16 rounded-full" />
+          <div className="space-y-2">
+            <Skeleton className="h-6 w-52" />
+            <Skeleton className="h-4 w-32" />
+          </div>
+        </div>
+        <Skeleton className="h-9 w-full max-w-sm" />
+      </PageContainer>
+    );
+  }
+
+  if (!employee) {
+    return (
+      <PageContainer>
+        <EmptyState
+          title="Employee not found"
+          description="This record doesn't exist, or you don't have access to it."
+          action={
+            <Link to="/employees" className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-link hover:underline">
+              <ArrowLeft className="h-3.5 w-3.5" />
+              Back to Employees
+            </Link>
+          }
+        />
+      </PageContainer>
+    );
+  }
+
+  const current = assignments.find((a) => a.effective_to === null);
+  const subtitle = [current?.designations?.title, current?.departments?.name].filter(Boolean).join(' · ');
+  const badge = STATUS_BADGE[employee.status] ?? { variant: 'default' as const, label: employee.status };
 
   return (
-    <div className="mx-auto max-w-[864px] p-6">
-      <div className="mb-6 flex items-center gap-4">
-        <div
-          className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-xl font-semibold text-text-inverse"
-          style={{ backgroundColor: avatarColor(employee.legal_name) }}
-        >
-          {initials(employee.legal_name)}
-        </div>
-        <div>
-          <h1 className="text-2xl font-medium text-foreground">{employee.legal_name}</h1>
-          <p className="mt-0.5 flex items-center gap-2 text-sm text-text-subtle">
-            {employee.employee_code}
-            <Badge variant={employee.status === 'active' ? 'success' : 'default'}>{employee.status}</Badge>
+    <PageContainer>
+      <div className="mb-8 flex items-start gap-4">
+        <Avatar name={employee.legal_name} size="xl" />
+        <div className="min-w-0 pt-1">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <h1 className="text-xl font-semibold tracking-tight text-foreground">{employee.legal_name}</h1>
+            <Badge variant={badge.variant}>{badge.label}</Badge>
+          </div>
+          <p className="mt-1 flex flex-wrap items-center gap-x-2 text-sm text-foreground-lighter">
+            <span className="font-mono text-xs">{employee.employee_code}</span>
+            {subtitle && <span className="text-foreground-muted">·</span>}
+            {subtitle && <span>{subtitle}</span>}
           </p>
         </div>
       </div>
@@ -88,6 +122,6 @@ export default function EmployeeDetail() {
           <DocumentsTab employeeId={employee.id} />
         </TabsContent>
       </Tabs>
-    </div>
+    </PageContainer>
   );
 }
