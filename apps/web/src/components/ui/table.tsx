@@ -8,16 +8,34 @@ import { cn } from '../../lib/ui/cn';
 // `text-foreground-lighter`/`-muted` themselves (getting my earlier default wrong, a blanket
 // `text-foreground-light`, is what made the whole table read as "greyed out"). Rows separate with
 // a hairline and lift to surface-200 on hover. Usually presented inside a Card.
-export function Table({ className, ...props }: React.TableHTMLAttributes<HTMLTableElement>) {
+// `containerClassName` styles the scroll wrapper — pass `flex-1 min-h-0` to make the wrapper the
+// vertical scroll region inside a height-constrained flex column (so the body scrolls while a
+// footer stays pinned below). Default is horizontal-only scroll, unchanged for existing callers.
+export function Table({
+  className,
+  containerClassName,
+  ...props
+}: React.TableHTMLAttributes<HTMLTableElement> & { containerClassName?: string }) {
   return (
-    <div className="w-full overflow-x-auto">
+    <div className={cn('w-full overflow-auto', containerClassName)}>
       <table className={cn('w-full border-collapse text-sm', className)} {...props} />
     </div>
   );
 }
 
-export function TableHeader({ className, ...props }: React.HTMLAttributes<HTMLTableSectionElement>) {
-  return <thead className={cn('[&_tr]:border-b [&_tr]:border-default', className)} {...props} />;
+// `sticky` pins the header to the top of the scroll container (opaque surface-100 background so
+// rows don't show through). Only meaningful when the Table wrapper actually scrolls vertically.
+export function TableHeader({
+  className,
+  sticky,
+  ...props
+}: React.HTMLAttributes<HTMLTableSectionElement> & { sticky?: boolean }) {
+  return (
+    <thead
+      className={cn('[&_tr]:border-b [&_tr]:border-default', sticky && 'sticky top-0 z-10 bg-surface-100', className)}
+      {...props}
+    />
+  );
 }
 
 export function TableBody({ className, ...props }: React.HTMLAttributes<HTMLTableSectionElement>) {
@@ -68,8 +86,12 @@ export function SortableHead({
   children: React.ReactNode;
 }) {
   const Icon = !active ? ChevronsUpDown : order === 'ASC' ? ArrowUp : ArrowDown;
+  const ariaSort = !active ? 'none' : order === 'ASC' ? 'ascending' : 'descending';
   return (
-    <th className={cn('h-10 whitespace-nowrap px-4 text-left align-middle text-xs font-normal text-foreground-lighter transition-colors', className)}>
+    <th
+      aria-sort={ariaSort}
+      className={cn('h-10 whitespace-nowrap px-4 text-left align-middle text-xs font-normal text-foreground-lighter transition-colors', className)}
+    >
       <button
         type="button"
         onClick={onClick}

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Check, Copy, Download, MoreHorizontal, Plus, Search, UserRound, Users, X } from 'lucide-react';
+import { Check, ChevronDown, Copy, Download, MoreHorizontal, Plus, Search, UserRound, Users, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { Avatar } from '../../components/ui/avatar';
 import { useAuthStore } from '../auth/store';
@@ -14,10 +14,27 @@ import { PageContainer, PageHeader, EmptyState, Skeleton } from '../../component
 import { Select } from '../../components/ui/select';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell, SortableHead } from '../../components/ui/table';
 import { TablePagination } from '../../components/ui/pagination';
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '../../components/ui/dropdown-menu';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuCheckboxItem,
+} from '../../components/ui/dropdown-menu';
 import { cn } from '../../lib/ui/cn';
 
 type SortKey = 'name' | 'code' | 'designation' | 'department' | 'status';
+
+// Columns that can be hidden via the "Columns" menu — Name (with the checkbox) and the row-
+// actions column always stay, matching the reference DataTableDemo's select/actions columns
+// (enableHiding: false).
+const TOGGLEABLE_COLUMNS = [
+  { key: 'code', label: 'Employee ID' },
+  { key: 'designation', label: 'Designation' },
+  { key: 'department', label: 'Department' },
+  { key: 'status', label: 'Status' },
+] as const;
+type ToggleableColumn = (typeof TOGGLEABLE_COLUMNS)[number]['key'];
 
 function sortValue(emp: EmployeeWithCurrentAssignment, key: SortKey): string {
   const current = emp.employment_assignments[0];
@@ -120,13 +137,15 @@ function RowActions({ employee }: { employee: EmployeeWithCurrentAssignment }) {
   return (
     <DropdownMenu onOpenChange={(open) => !open && setCopied(false)}>
       <DropdownMenuTrigger asChild>
-        <button
+        <Button
+          variant="default"
+          size="tiny"
+          className="w-[26px] px-0"
           onClick={(e) => e.stopPropagation()}
           aria-label={`Actions for ${employee.legal_name}`}
-          className="flex h-7 w-7 items-center justify-center rounded-md text-foreground-lighter transition-colors hover:bg-surface-200 hover:text-foreground"
         >
-          <MoreHorizontal className="h-4 w-4" />
-        </button>
+          <MoreHorizontal className="h-3.5 w-3.5" />
+        </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuItem onSelect={() => navigate(`/employees/${employee.id}`)}>
@@ -166,6 +185,14 @@ export default function EmployeeDirectory() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(20);
+  const [hiddenColumns, setHiddenColumns] = useState<Set<ToggleableColumn>>(new Set());
+  const toggleColumn = (key: ToggleableColumn) =>
+    setHiddenColumns((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
 
   useEffect(() => {
     fetchEmployees();
@@ -232,12 +259,17 @@ export default function EmployeeDirectory() {
     });
   };
 
+  // Three-state cycle per column: unsorted -> ASC -> DESC -> unsorted (matching the design
+  // system's TanStackTableHeadSort behavior, rather than trapping a column in ASC/DESC forever
+  // once first clicked).
   const toggleSort = (key: SortKey) => {
     if (sortKey !== key) {
       setSortKey(key);
       setSortOrder('ASC');
+    } else if (sortOrder === 'ASC') {
+      setSortOrder('DESC');
     } else {
-      setSortOrder((o) => (o === 'ASC' ? 'DESC' : 'ASC'));
+      setSortKey(null);
     }
   };
 
@@ -262,14 +294,15 @@ export default function EmployeeDirectory() {
   const hasNoEmployees = !loading && employees.length === 0;
 
   return (
-    <PageContainer size="full">
+    <PageContainer size="full" className="flex h-full flex-col">
       <PageHeader
         title="Employees"
         description="Everyone in your organisation, with their current role and status."
+        className="shrink-0"
       />
 
       {error && (
-        <Alert variant="destructive" title="Couldn't load employees" className="mb-6">
+        <Alert variant="destructive" title="Couldn't load employees" className="mb-6 shrink-0">
           {error}
         </Alert>
       )}
@@ -291,9 +324,9 @@ export default function EmployeeDirectory() {
           }
         />
       ) : (
-        <>
+        <div className="flex min-h-0 flex-1 flex-col">
           {/* Filter row — search left, actions right (design system layout.md List pattern). */}
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <div className="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-3">
             <InputGroup size="small" className="w-full max-w-xs">
               <InputGroupAddon>
                 <Search />
@@ -318,6 +351,26 @@ export default function EmployeeDirectory() {
                   </Button>
                 </>
               )}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="default" size="small">
+                    Columns
+                    <ChevronDown className="h-3.5 w-3.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {TOGGLEABLE_COLUMNS.map((col) => (
+                    <DropdownMenuCheckboxItem
+                      key={col.key}
+                      checked={!hiddenColumns.has(col.key)}
+                      onCheckedChange={() => toggleColumn(col.key)}
+                      onSelect={(e) => e.preventDefault()}
+                    >
+                      {col.label}
+                    </DropdownMenuCheckboxItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
               {role === 'admin' && (
                 <Button asChild variant="primary" size="small">
                   <Link to="/employees/new">
@@ -329,9 +382,9 @@ export default function EmployeeDirectory() {
             </div>
           </div>
 
-          <Card className="overflow-hidden">
-            <Table>
-              <TableHeader>
+          <Card className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <Table containerClassName="min-h-0 flex-1">
+              <TableHeader sticky>
                 <TableRow className="hover:bg-transparent">
                   <TableHead className="w-10 pr-0">
                     <input
@@ -345,18 +398,26 @@ export default function EmployeeDirectory() {
                   <SortableHead active={sortKey === 'name'} order={sortKey === 'name' ? sortOrder : null} onClick={() => toggleSort('name')}>
                     Name
                   </SortableHead>
-                  <SortableHead active={sortKey === 'code'} order={sortKey === 'code' ? sortOrder : null} onClick={() => toggleSort('code')}>
-                    Employee ID
-                  </SortableHead>
-                  <SortableHead active={sortKey === 'designation'} order={sortKey === 'designation' ? sortOrder : null} onClick={() => toggleSort('designation')}>
-                    Designation
-                  </SortableHead>
-                  <SortableHead active={sortKey === 'department'} order={sortKey === 'department' ? sortOrder : null} onClick={() => toggleSort('department')}>
-                    Department
-                  </SortableHead>
-                  <SortableHead active={sortKey === 'status'} order={sortKey === 'status' ? sortOrder : null} onClick={() => toggleSort('status')}>
-                    Status
-                  </SortableHead>
+                  {!hiddenColumns.has('code') && (
+                    <SortableHead active={sortKey === 'code'} order={sortKey === 'code' ? sortOrder : null} onClick={() => toggleSort('code')}>
+                      Employee ID
+                    </SortableHead>
+                  )}
+                  {!hiddenColumns.has('designation') && (
+                    <SortableHead active={sortKey === 'designation'} order={sortKey === 'designation' ? sortOrder : null} onClick={() => toggleSort('designation')}>
+                      Designation
+                    </SortableHead>
+                  )}
+                  {!hiddenColumns.has('department') && (
+                    <SortableHead active={sortKey === 'department'} order={sortKey === 'department' ? sortOrder : null} onClick={() => toggleSort('department')}>
+                      Department
+                    </SortableHead>
+                  )}
+                  {!hiddenColumns.has('status') && (
+                    <SortableHead active={sortKey === 'status'} order={sortKey === 'status' ? sortOrder : null} onClick={() => toggleSort('status')}>
+                      Status
+                    </SortableHead>
+                  )}
                   <TableHead className="w-10" />
                 </TableRow>
               </TableHeader>
@@ -371,16 +432,16 @@ export default function EmployeeDirectory() {
                           <Skeleton className="h-4 w-40" />
                         </div>
                       </TableCell>
-                      <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-28" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                      {!hiddenColumns.has('code') && <TableCell><Skeleton className="h-4 w-20" /></TableCell>}
+                      {!hiddenColumns.has('designation') && <TableCell><Skeleton className="h-4 w-28" /></TableCell>}
+                      {!hiddenColumns.has('department') && <TableCell><Skeleton className="h-4 w-24" /></TableCell>}
+                      {!hiddenColumns.has('status') && <TableCell><Skeleton className="h-4 w-20" /></TableCell>}
                       <TableCell />
                     </TableRow>
                   ))
                 ) : pagedEmployees.length === 0 ? (
                   <TableRow className="hover:bg-transparent">
-                    <TableCell colSpan={7} className="py-10 text-center">
+                    <TableCell colSpan={3 + TOGGLEABLE_COLUMNS.length - hiddenColumns.size} className="py-10 text-center">
                       <p className="text-sm text-foreground">No matches</p>
                       <p className="mt-0.5 text-sm text-foreground-lighter">
                         No employees match “{filterText.trim()}”. Try a different search.
@@ -402,12 +463,20 @@ export default function EmployeeDirectory() {
                       <TableCell>
                         <NameCell employee={emp} />
                       </TableCell>
-                      <TableCell className="font-mono text-xs text-foreground-lighter">{emp.employee_code}</TableCell>
-                      <TableCell>{emp.employment_assignments[0]?.designations?.title ?? '—'}</TableCell>
-                      <TableCell>{emp.employment_assignments[0]?.departments?.name ?? '—'}</TableCell>
-                      <TableCell>
-                        <StatusCell employee={emp} canEdit={role === 'admin'} />
-                      </TableCell>
+                      {!hiddenColumns.has('code') && (
+                        <TableCell className="font-mono text-xs text-foreground-lighter">{emp.employee_code}</TableCell>
+                      )}
+                      {!hiddenColumns.has('designation') && (
+                        <TableCell>{emp.employment_assignments[0]?.designations?.title ?? '—'}</TableCell>
+                      )}
+                      {!hiddenColumns.has('department') && (
+                        <TableCell>{emp.employment_assignments[0]?.departments?.name ?? '—'}</TableCell>
+                      )}
+                      {!hiddenColumns.has('status') && (
+                        <TableCell>
+                          <StatusCell employee={emp} canEdit={role === 'admin'} />
+                        </TableCell>
+                      )}
                       <TableCell className="pl-0">
                         <RowActions employee={emp} />
                       </TableCell>
@@ -416,33 +485,35 @@ export default function EmployeeDirectory() {
                 )}
               </TableBody>
             </Table>
-          </Card>
 
-          {/* Sticky footer bar (rows-per-page + range + pagination) — stays pinned to the
-              bottom of the scroll area instead of requiring a scroll to the end of a long list. */}
-          <div className="sticky bottom-0 -mx-6 mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-default bg-background px-6 py-3 md:-mx-8 md:px-8">
-            <div className="flex items-center gap-2 text-sm text-foreground-lighter">
-              <span>Rows per page</span>
-              <Select
-                value={String(rowsPerPage)}
-                onChange={(e) => setRowsPerPage(Number(e.currentTarget.value))}
-                className="h-7 w-[4.5rem] py-0 text-xs"
-              >
-                {ROWS_PER_PAGE_OPTIONS.map((n) => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
-              </Select>
+            {/* Footer lives inside the Card as a non-shrinking row under the scroll area —
+                the table body above scrolls, this stays pinned and always visible. All three
+                groups (rows-per-page + range + pagination) sit on one line — no wrapping — with
+                the range text in the middle allowed to truncate first on narrow widths. */}
+            <div className="flex shrink-0 items-center justify-between gap-4 border-t border-default px-4 py-3">
+              <div className="flex shrink-0 items-center gap-2 text-sm text-foreground-lighter">
+                <span className="hidden sm:inline">Rows per page</span>
+                <Select
+                  value={String(rowsPerPage)}
+                  onChange={(e) => setRowsPerPage(Number(e.currentTarget.value))}
+                  className="h-7 w-[4.5rem] py-0 text-xs"
+                >
+                  {ROWS_PER_PAGE_OPTIONS.map((n) => (
+                    <option key={n} value={n}>
+                      {n}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+              <span className="hidden truncate text-sm tabular-nums text-foreground-lighter md:block">
+                {visibleEmployees.length === 0
+                  ? '0 employees'
+                  : `Showing ${(page - 1) * rowsPerPage + 1} to ${Math.min(page * rowsPerPage, visibleEmployees.length)} of ${visibleEmployees.length} ${visibleEmployees.length === 1 ? 'employee' : 'employees'}`}
+              </span>
+              <TablePagination page={page} pageCount={pageCount} onPageChange={setPage} className="shrink-0" />
             </div>
-            <span className="tabular-nums text-sm text-foreground-lighter">
-              {visibleEmployees.length === 0
-                ? '0 employees'
-                : `Showing ${(page - 1) * rowsPerPage + 1} to ${Math.min(page * rowsPerPage, visibleEmployees.length)} of ${visibleEmployees.length} ${visibleEmployees.length === 1 ? 'employee' : 'employees'}`}
-            </span>
-            <TablePagination page={page} pageCount={pageCount} onPageChange={setPage} />
-          </div>
-        </>
+          </Card>
+        </div>
       )}
     </PageContainer>
   );

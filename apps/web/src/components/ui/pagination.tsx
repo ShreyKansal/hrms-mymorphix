@@ -100,7 +100,9 @@ export function TablePagination({
   className?: string;
 }) {
   return (
-    <Pagination className={cn('justify-end', className)}>
+    // w-auto (not the standalone Pagination's w-full) so this sits as a compact, content-width
+    // group inside a flex footer row instead of stretching and overflowing.
+    <Pagination className={cn('mx-0 w-auto justify-end', className)}>
       <PaginationContent>
         <PaginationItem>
           <PaginationPrevious disabled={page === 1} onClick={() => onPageChange(page - 1)} />

@@ -285,21 +285,24 @@ input[type="range"] {
   accent-color: hsl(var(--brand-500));
 }
 
-/* Thin, theme-aware scrollbars — Studio uses restrained, low-contrast scrollbars. */
+/* Extremely light, thin, theme-aware scrollbars — barely-there until interacted with. */
 * {
   scrollbar-width: thin;
-  scrollbar-color: hsl(var(--border-stronger)) transparent;
+  scrollbar-color: hsl(var(--border-default) / 0.5) transparent;
 }
 *::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 6px;
+  height: 6px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
 }
 *::-webkit-scrollbar-thumb {
-  background-color: hsl(var(--border-stronger));
+  background-color: hsl(var(--border-default) / 0.5);
   border-radius: 9999px;
-  border: 3px solid transparent;
+  border: 1px solid transparent;
   background-clip: content-box;
 }
 *::-webkit-scrollbar-thumb:hover {
-  background-color: hsl(var(--foreground-muted));
+  background-color: hsl(var(--border-stronger) / 0.7);
 }
