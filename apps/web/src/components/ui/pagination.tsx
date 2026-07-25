@@ -85,7 +85,9 @@ function pageWindow(current: number, total: number): (number | 'ellipsis')[] {
 
 // Table-ready wrapper: give it the current page, total page count, and a setter — it renders
 // Previous / numbered pages with ellipses / Next, fully wired. This is what screens with a
-// paginated <Table> should reach for instead of hand-rolling Previous/Next buttons.
+// paginated <Table> should reach for instead of hand-rolling Previous/Next buttons. Always
+// renders, even with a single page (Previous/Next just come up disabled) — so the control
+// occupies a stable, predictable spot in the layout rather than popping in/out as rows change.
 export function TablePagination({
   page,
   pageCount,
@@ -97,7 +99,6 @@ export function TablePagination({
   onPageChange: (page: number) => void;
   className?: string;
 }) {
-  if (pageCount <= 1) return null;
   return (
     <Pagination className={cn('justify-end', className)}>
       <PaginationContent>

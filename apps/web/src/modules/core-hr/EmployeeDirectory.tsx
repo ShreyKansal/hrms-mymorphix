@@ -11,6 +11,7 @@ import { InputGroup, InputGroupInput, InputGroupAddon } from '../../components/u
 import { Card } from '../../components/ui/card';
 import { Alert } from '../../components/ui/alert';
 import { PageContainer, PageHeader, EmptyState, Skeleton } from '../../components/ui/page';
+import { Select } from '../../components/ui/select';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell, SortableHead } from '../../components/ui/table';
 import { TablePagination } from '../../components/ui/pagination';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '../../components/ui/dropdown-menu';
@@ -151,7 +152,7 @@ function toCsvValue(value: string): string {
   return `"${value.replace(/"/g, '""')}"`;
 }
 
-const ROWS_PER_PAGE = 20;
+const ROWS_PER_PAGE_OPTIONS = [10, 20, 50, 100];
 
 // docs/build/build-guides/01-core-hr-employee-information.md screen #1. Backed by Zustand +
 // Supabase Realtime, so the list updates live on any insert/update to this tenant's employees.
@@ -164,6 +165,7 @@ export default function EmployeeDirectory() {
   const [filterText, setFilterText] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(20);
 
   useEffect(() => {
     fetchEmployees();
@@ -196,10 +198,10 @@ export default function EmployeeDirectory() {
 
   useEffect(() => {
     setPage(1);
-  }, [filterText, sortKey, sortOrder]);
+  }, [filterText, sortKey, sortOrder, rowsPerPage]);
 
-  const pageCount = Math.max(1, Math.ceil(visibleEmployees.length / ROWS_PER_PAGE));
-  const pagedEmployees = visibleEmployees.slice((page - 1) * ROWS_PER_PAGE, page * ROWS_PER_PAGE);
+  const pageCount = Math.max(1, Math.ceil(visibleEmployees.length / rowsPerPage));
+  const pagedEmployees = visibleEmployees.slice((page - 1) * rowsPerPage, page * rowsPerPage);
 
   // Clear selections that scrolled out of the filtered/sorted view — keeping them would let
   // "Export CSV" silently include rows the user can no longer see.
@@ -416,9 +418,27 @@ export default function EmployeeDirectory() {
             </Table>
           </Card>
 
-          <div className="mt-3 flex items-center justify-between gap-3 text-sm text-foreground-lighter">
-            <span className="tabular-nums">
-              {visibleEmployees.length} {visibleEmployees.length === 1 ? 'employee' : 'employees'}
+          {/* Sticky footer bar (rows-per-page + range + pagination) — stays pinned to the
+              bottom of the scroll area instead of requiring a scroll to the end of a long list. */}
+          <div className="sticky bottom-0 -mx-6 mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-default bg-background px-6 py-3 md:-mx-8 md:px-8">
+            <div className="flex items-center gap-2 text-sm text-foreground-lighter">
+              <span>Rows per page</span>
+              <Select
+                value={String(rowsPerPage)}
+                onChange={(e) => setRowsPerPage(Number(e.currentTarget.value))}
+                className="h-7 w-[4.5rem] py-0 text-xs"
+              >
+                {ROWS_PER_PAGE_OPTIONS.map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <span className="tabular-nums text-sm text-foreground-lighter">
+              {visibleEmployees.length === 0
+                ? '0 employees'
+                : `Showing ${(page - 1) * rowsPerPage + 1} to ${Math.min(page * rowsPerPage, visibleEmployees.length)} of ${visibleEmployees.length} ${visibleEmployees.length === 1 ? 'employee' : 'employees'}`}
             </span>
             <TablePagination page={page} pageCount={pageCount} onPageChange={setPage} />
           </div>
