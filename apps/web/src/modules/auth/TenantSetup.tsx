@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Button from '@atlaskit/button/new';
-import Form, { Field, FormFooter, FormHeader, FormSection } from '@atlaskit/form';
-import TextField from '@atlaskit/textfield';
-import Heading from '@atlaskit/heading';
+import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
+import { Label } from '../../components/ui/label';
 import { useAuthStore } from './store';
 
 // The minimal setup wizard from docs/build/build-guides/22-system-administration.md —
@@ -16,12 +15,18 @@ import { useAuthStore } from './store';
 // Checks for a pending invitation before rendering the create-company form at all — a user
 // who was invited to an existing tenant should land straight in it, not be offered to create
 // a second, unrelated company by mistake.
+//
+// Migrated off @atlaskit/form: no form library here, just a plain <form> read via FormData
+// and native `required` for validation — @atlaskit/form's main value (required-asterisk
+// styling, inline error slots) is reproduced directly with Label's `required` prop and plain
+// browser-native validation, not lost by dropping the library.
 export default function TenantSetup() {
   const navigate = useNavigate();
   const provisionTenant = useAuthStore((s) => s.provisionTenant);
   const tryAcceptInvitation = useAuthStore((s) => s.tryAcceptInvitation);
   const [checkingInvitation, setCheckingInvitation] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -38,39 +43,41 @@ export default function TenantSetup() {
   if (checkingInvitation) return null;
 
   return (
-    <div style={{ maxWidth: 480, margin: '80px auto' }}>
-      <Heading size="large">Set up your company</Heading>
-      <p style={{ marginBottom: 24 }}>
-        Just the basics for now — everything else (departments, policies, more legal entities) can
-        be added later, whenever you actually need it.
+    <div className="mx-auto mt-20 max-w-[480px]">
+      <h1 className="text-2xl font-medium text-foreground">Set up your company</h1>
+      <p className="mb-6 mt-2 text-sm text-text-subtle">
+        Just the basics for now — everything else (departments, policies, more legal entities) can be added later, whenever you
+        actually need it.
       </p>
-      {error && <p style={{ color: 'red' }}>{error}</p>}
-      <Form<{ companyName: string; legalEntityName: string }>
-        onSubmit={async (data) => {
-          const { error } = await provisionTenant(data.companyName, data.legalEntityName);
+      {error && <p className="mb-4 text-sm text-text-danger">{error}</p>}
+      <form
+        onSubmit={async (e) => {
+          e.preventDefault();
+          const data = new FormData(e.currentTarget);
+          setSubmitting(true);
+          setError(null);
+          const { error } = await provisionTenant(String(data.get('companyName')), String(data.get('legalEntityName')));
+          setSubmitting(false);
           if (error) setError(error);
           else navigate('/employees');
         }}
       >
-        {({ formProps }) => (
-          <form {...formProps}>
-            <FormHeader title="" />
-            <FormSection>
-              <Field name="companyName" label="Company name" isRequired defaultValue="">
-                {({ fieldProps }) => <TextField {...fieldProps} autoFocus />}
-              </Field>
-              <Field name="legalEntityName" label="Primary legal entity name" isRequired defaultValue="">
-                {({ fieldProps }) => <TextField {...fieldProps} />}
-              </Field>
-            </FormSection>
-            <FormFooter align="start">
-              <Button type="submit" appearance="primary">
-                Create workspace
-              </Button>
-            </FormFooter>
-          </form>
-        )}
-      </Form>
+        <div className="mb-4">
+          <Label htmlFor="companyName" required>
+            Company name
+          </Label>
+          <Input id="companyName" name="companyName" required autoFocus />
+        </div>
+        <div className="mb-6">
+          <Label htmlFor="legalEntityName" required>
+            Primary legal entity name
+          </Label>
+          <Input id="legalEntityName" name="legalEntityName" required />
+        </div>
+        <Button type="submit" variant="primary" loading={submitting}>
+          Create workspace
+        </Button>
+      </form>
     </div>
   );
 }

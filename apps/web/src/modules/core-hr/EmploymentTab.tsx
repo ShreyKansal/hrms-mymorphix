@@ -1,12 +1,15 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import Heading from '@atlaskit/heading';
-import Lozenge from '@atlaskit/lozenge';
-import Button from '@atlaskit/button/new';
 import type { EmploymentAssignment } from '../../lib/database.types';
 import { useAuthStore } from '../auth/store';
-import { labelStyle, valueStyle } from '../../lib/detailStyles';
+import { Button } from '../../components/ui/button';
+import { Badge } from '../../components/ui/badge';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../../components/ui/table';
+import { cn } from '../../lib/ui/cn';
 import TransferEmployeeModal from './TransferEmployeeModal';
+
+const labelClass = 'text-xs font-semibold text-text-subtle';
+const valueClass = 'mt-0.5 text-foreground';
 
 export default function EmploymentTab({
   employeeId,
@@ -23,60 +26,63 @@ export default function EmploymentTab({
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Heading size="small">Current assignment</Heading>
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-foreground">Current assignment</h3>
         {role === 'admin' && <Button onClick={() => setTransferOpen(true)}>Transfer</Button>}
       </div>
       {current ? (
-        <div style={{ marginBottom: 24 }}>
-          <p style={labelStyle}>Department</p>
-          <p style={valueStyle}>{current.departments?.name ?? '—'}</p>
-          <p style={labelStyle}>Designation</p>
-          <p style={valueStyle}>{current.designations?.title ?? '—'}</p>
-          <p style={labelStyle}>Grade</p>
-          <p style={valueStyle}>{current.grades?.name ?? '—'}</p>
-          <p style={labelStyle}>Reports to</p>
-          <p style={valueStyle}>
-            {current.manager ? <Link to={`/employees/${current.manager.id}`}>{current.manager.legal_name}</Link> : '—'}
+        <div className="mb-6 mt-2 grid grid-cols-2 gap-x-6">
+          <p className={labelClass}>Department</p>
+          <p className={labelClass}>Designation</p>
+          <p className={valueClass}>{current.departments?.name ?? '—'}</p>
+          <p className={valueClass}>{current.designations?.title ?? '—'}</p>
+          <p className={cn(labelClass, 'mt-3')}>Grade</p>
+          <p className={cn(labelClass, 'mt-3')}>Reports to</p>
+          <p className={valueClass}>{current.grades?.name ?? '—'}</p>
+          <p className={valueClass}>
+            {current.manager ? (
+              <Link to={`/employees/${current.manager.id}`} className="text-selected hover:underline">
+                {current.manager.legal_name}
+              </Link>
+            ) : (
+              '—'
+            )}
           </p>
-          <p style={labelStyle}>Employment type</p>
-          <p style={valueStyle}>{current.employment_type}</p>
-          <p style={labelStyle}>Since</p>
-          <p style={valueStyle}>{new Date(current.effective_from).toLocaleDateString()}</p>
+          <p className={cn(labelClass, 'mt-3')}>Employment type</p>
+          <p className={cn(labelClass, 'mt-3')}>Since</p>
+          <p className={valueClass}>{current.employment_type}</p>
+          <p className={valueClass}>{new Date(current.effective_from).toLocaleDateString()}</p>
         </div>
       ) : (
-        <p style={{ color: '#626F86' }}>No current assignment.</p>
+        <p className="mt-2 text-text-subtle">No current assignment.</p>
       )}
 
-      <Heading size="small">History</Heading>
-      <p style={{ color: '#626F86', margin: '4px 0 16px' }}>
-        Every row below is a separate, permanent record — nothing here was ever overwritten. The
-        row with no end date is the current one.
+      <h3 className="text-sm font-semibold text-foreground">History</h3>
+      <p className="my-2 text-text-subtle">
+        Every row below is a separate, permanent record — nothing here was ever overwritten. The row with no end date is the current one.
       </p>
-      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-        <thead>
-          <tr style={{ textAlign: 'left', borderBottom: '2px solid #DCDFE4' }}>
-            <th style={{ padding: 8 }}>Reason</th>
-            <th style={{ padding: 8 }}>Department</th>
-            <th style={{ padding: 8 }}>Designation</th>
-            <th style={{ padding: 8 }}>Effective from</th>
-            <th style={{ padding: 8 }}>Effective to</th>
-          </tr>
-        </thead>
-        <tbody>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Reason</TableHead>
+            <TableHead>Department</TableHead>
+            <TableHead>Designation</TableHead>
+            <TableHead>Effective from</TableHead>
+            <TableHead>Effective to</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {assignments.map((a) => (
-            <tr key={a.id} style={{ borderBottom: '1px solid #DCDFE4' }}>
-              <td style={{ padding: 8 }}>{a.reason_code}</td>
-              <td style={{ padding: 8 }}>{a.departments?.name ?? '—'}</td>
-              <td style={{ padding: 8 }}>{a.designations?.title ?? '—'}</td>
-              <td style={{ padding: 8 }}>{new Date(a.effective_from).toLocaleDateString()}</td>
-              <td style={{ padding: 8 }}>
-                {a.effective_to ? new Date(a.effective_to).toLocaleDateString() : <Lozenge>current</Lozenge>}
-              </td>
-            </tr>
+            <TableRow key={a.id}>
+              <TableCell>{a.reason_code}</TableCell>
+              <TableCell>{a.departments?.name ?? '—'}</TableCell>
+              <TableCell>{a.designations?.title ?? '—'}</TableCell>
+              <TableCell>{new Date(a.effective_from).toLocaleDateString()}</TableCell>
+              <TableCell>{a.effective_to ? new Date(a.effective_to).toLocaleDateString() : <Badge>current</Badge>}</TableCell>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
 
       {transferOpen && (
         <TransferEmployeeModal

@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import Heading from '@atlaskit/heading';
 import { useEmployeesStore, type EmployeeWithCurrentAssignment } from './store';
 
 interface TreeNode {
@@ -38,9 +37,11 @@ function buildTree(employees: EmployeeWithCurrentAssignment[]): TreeNode[] {
 
 function TreeItem({ node, depth }: { node: TreeNode; depth: number }) {
   return (
-    <div style={{ marginLeft: depth * 24, marginTop: 8 }}>
-      <Link to={`/employees/${node.id}`}>{node.name}</Link>
-      <span style={{ color: '#626F86', marginLeft: 8 }}>{node.designation}</span>
+    <div className="mt-2" style={{ marginLeft: depth * 24 }}>
+      <Link to={`/employees/${node.id}`} className="text-selected hover:underline">
+        {node.name}
+      </Link>
+      <span className="ml-2 text-text-subtle">{node.designation}</span>
       {node.children.map((child) => (
         <TreeItem key={child.id} node={child} depth={depth + 1} />
       ))}
@@ -59,13 +60,11 @@ export default function OrgChart() {
   const tree = buildTree(employees);
 
   return (
-    <div style={{ maxWidth: 864, margin: '0 auto', padding: 24 }}>
-      <div style={{ marginBottom: 24 }}>
-        <Heading size="large">Org chart</Heading>
-      </div>
+    <div className="mx-auto max-w-[864px] p-6">
+      <h1 className="mb-6 text-2xl font-medium text-foreground">Org chart</h1>
 
-      {loading && <p>Loading…</p>}
-      {!loading && tree.length === 0 && <p style={{ color: '#626F86' }}>No employees yet.</p>}
+      {loading && <p className="text-text-subtle">Loading…</p>}
+      {!loading && tree.length === 0 && <p className="text-text-subtle">No employees yet.</p>}
       {tree.map((node) => (
         <TreeItem key={node.id} node={node} depth={0} />
       ))}

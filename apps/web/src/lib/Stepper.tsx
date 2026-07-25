@@ -1,4 +1,5 @@
-import { token } from '@atlaskit/tokens';
+import { Check } from 'lucide-react';
+import { cn } from './ui/cn';
 
 // First real multi-step flow in the app (docs/build/03-ui-patterns.md §2's researched
 // threshold: >6-7 fields or distinct field categories + an infrequent task → full page with a
@@ -16,61 +17,26 @@ export interface StepperStep {
 
 export function Stepper({ steps, currentIndex }: { steps: StepperStep[]; currentIndex: number }) {
   return (
-    <ol
-      style={{
-        display: 'flex',
-        listStyle: 'none',
-        margin: 0,
-        padding: 0,
-        marginBottom: 32,
-      }}
-    >
+    <ol className="mb-8 flex list-none p-0">
       {steps.map((step, i) => {
         const isDone = i < currentIndex;
         const isCurrent = i === currentIndex;
-        const circleColor = isDone
-          ? token('color.background.success.bold', '#1F845A')
-          : isCurrent
-            ? token('color.background.selected.bold', '#0C66E4')
-            : token('color.background.disabled', '#F1F2F4');
-        const textColor = isCurrent
-          ? token('color.text', '#172B4D')
-          : isDone
-            ? token('color.text', '#172B4D')
-            : token('color.text.subtlest', '#8590A2');
-
         return (
-          <li key={step.label} style={{ display: 'flex', alignItems: 'center', flex: i === steps.length - 1 ? '0 0 auto' : '1 1 auto' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap' }}>
+          <li key={step.label} className={cn('flex items-center', i === steps.length - 1 ? 'flex-none' : 'flex-1')}>
+            <div className="flex items-center gap-2 whitespace-nowrap">
               <div
-                style={{
-                  width: 24,
-                  height: 24,
-                  borderRadius: '50%',
-                  flexShrink: 0,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 12,
-                  fontWeight: 600,
-                  backgroundColor: circleColor,
-                  color: isDone || isCurrent ? token('color.text.inverse', '#FFFFFF') : token('color.text.subtlest', '#8590A2'),
-                }}
+                className={cn(
+                  'flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold',
+                  isDone ? 'bg-success-text text-text-inverse' : isCurrent ? 'bg-selected text-text-inverse' : 'bg-secondary text-text-subtlest',
+                )}
               >
-                {isDone ? '✓' : i + 1}
+                {isDone ? <Check className="h-3.5 w-3.5" /> : i + 1}
               </div>
-              <span style={{ fontSize: 14, fontWeight: isCurrent ? 600 : 400, color: textColor }}>{step.label}</span>
+              <span className={cn('text-sm', isCurrent ? 'font-semibold text-foreground' : isDone ? 'text-foreground' : 'text-text-subtlest')}>
+                {step.label}
+              </span>
             </div>
-            {i !== steps.length - 1 && (
-              <div
-                style={{
-                  flex: '1 1 auto',
-                  height: 1,
-                  margin: '0 12px',
-                  backgroundColor: isDone ? token('color.background.success.bold', '#1F845A') : token('color.border', '#DCDFE4'),
-                }}
-              />
-            )}
+            {i !== steps.length - 1 && <div className={cn('mx-3 h-px flex-1', isDone ? 'bg-success-text' : 'bg-border')} />}
           </li>
         );
       })}

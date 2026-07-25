@@ -1,16 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import Button from '@atlaskit/button/new';
-import DynamicTable from '@atlaskit/dynamic-table';
-import Heading from '@atlaskit/heading';
-import TextField from '@atlaskit/textfield';
-import { token } from '@atlaskit/tokens';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { supabase } from '../../lib/supabase';
 import { avatarColor, initials } from '../../lib/avatar';
 import { useAuthStore } from '../auth/store';
 import { useEmployeesStore, type EmployeeWithCurrentAssignment } from './store';
 import type { Employee } from '../../lib/database.types';
+import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell, SortableHead } from '../../components/ui/table';
+import { cn } from '../../lib/ui/cn';
 
 type SortKey = 'name' | 'code' | 'designation' | 'department' | 'status';
 
@@ -35,20 +34,18 @@ function sortValue(emp: EmployeeWithCurrentAssignment, key: SortKey): string {
 // not-yet-built Module 3 onboarding flow, so it shouldn't be a state anyone picks by hand.
 const EDITABLE_STATUSES: Employee['status'][] = ['active', 'on_leave', 'suspended', 'separation_initiated', 'separated'];
 const STATUS_DOT_COLOR: Record<Employee['status'], string> = {
-  draft: '#8590A2',
-  active: '#22A06B',
-  on_leave: '#E56910',
-  suspended: '#E2483D',
-  separation_initiated: '#E2483D',
-  separated: '#6B778C',
+  draft: 'bg-text-subtlest',
+  active: 'bg-success-text',
+  on_leave: 'bg-warning-text',
+  suspended: 'bg-destructive',
+  separation_initiated: 'bg-destructive',
+  separated: 'bg-text-subtle',
 };
 
 // Inline-editable status (colored dot + text, click to change) rather than a static read-only
 // badge — the Qubit reference this table is benchmarked against treats status as something you
 // act on from the list, not just read. Admin-gated the same way every other write action in
-// this app is (UX only — the real gate would be RLS/an RPC role check if this needs one later;
-// today `employees` writes are tenant-scoped only, same as ProfileTab's existing edit path,
-// not a new gap this feature introduces).
+// this app is.
 function StatusCell({ employee, canEdit }: { employee: EmployeeWithCurrentAssignment; canEdit: boolean }) {
   const fetchEmployees = useEmployeesStore((s) => s.fetchEmployees);
   const [editing, setEditing] = useState(false);
@@ -64,15 +61,14 @@ function StatusCell({ employee, canEdit }: { employee: EmployeeWithCurrentAssign
         onChange={async (e) => {
           setSaving(true);
           await supabase.from('employees').update({ status: e.target.value as Employee['status'] }).eq('id', employee.id);
-          // Don't wait on Realtime to refresh the row — it will eventually, but a status change
-          // the user just made should be reflected the instant it's saved, not whenever the
-          // subscription round-trip happens to land. Realtime still handles updates from other
-          // tabs/users; this just removes the wait for *this* one.
+          // Don't wait on Realtime to refresh the row — a status change the user just made
+          // should be reflected the instant it's saved, not whenever the subscription
+          // round-trip happens to land.
           await fetchEmployees();
           setSaving(false);
           setEditing(false);
         }}
-        style={{ fontSize: 13, height: 28, borderRadius: 4, border: `1px solid ${token('color.border.focused', '#388BFF')}` }}
+        className="h-7 rounded border border-border-focused text-[13px]"
       >
         {EDITABLE_STATUSES.map((s) => (
           <option key={s} value={s}>
@@ -87,40 +83,20 @@ function StatusCell({ employee, canEdit }: { employee: EmployeeWithCurrentAssign
     <button
       onClick={() => canEdit && setEditing(true)}
       disabled={!canEdit}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 6,
-        background: 'none',
-        border: 'none',
-        padding: 0,
-        cursor: canEdit ? 'pointer' : 'default',
-        font: 'inherit',
-      }}
+      className={cn('flex items-center gap-1.5 bg-transparent p-0 font-sans', canEdit ? 'cursor-pointer' : 'cursor-default')}
     >
-      <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: STATUS_DOT_COLOR[employee.status], flexShrink: 0 }} />
-      <span style={{ fontSize: 13, color: token('color.text', '#172B4D'), textTransform: 'capitalize' }}>{employee.status.replace('_', ' ')}</span>
+      <span className={cn('h-2 w-2 shrink-0 rounded-full', STATUS_DOT_COLOR[employee.status])} />
+      <span className="text-[13px] capitalize text-foreground">{employee.status.replace('_', ' ')}</span>
     </button>
   );
 }
 
 function NameCell({ employee }: { employee: EmployeeWithCurrentAssignment }) {
   return (
-    <Link to={`/employees/${employee.id}`} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+    <Link to={`/employees/${employee.id}`} className="flex items-center gap-2 text-selected hover:underline">
       <span
-        style={{
-          width: 22,
-          height: 22,
-          borderRadius: '50%',
-          flexShrink: 0,
-          backgroundColor: avatarColor(employee.legal_name),
-          color: token('color.text.inverse', '#FFFFFF'),
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: 10,
-          fontWeight: 600,
-        }}
+        className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full text-[10px] font-semibold text-text-inverse"
+        style={{ backgroundColor: avatarColor(employee.legal_name) }}
       >
         {initials(employee.legal_name)}
       </span>
@@ -132,6 +108,8 @@ function NameCell({ employee }: { employee: EmployeeWithCurrentAssignment }) {
 function toCsvValue(value: string): string {
   return `"${value.replace(/"/g, '""')}"`;
 }
+
+const ROWS_PER_PAGE = 20;
 
 // docs/build/build-guides/01-core-hr-employee-information.md screen #1 —
 // "keep row actions minimal ... click a row -> Employee Detail page."
@@ -147,6 +125,7 @@ export default function EmployeeDirectory() {
   const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('ASC');
   const [filterText, setFilterText] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     fetchEmployees();
@@ -177,9 +156,15 @@ export default function EmployeeDirectory() {
     return copy;
   }, [employees, filterText, sortKey, sortOrder]);
 
+  useEffect(() => {
+    setPage(1);
+  }, [filterText, sortKey, sortOrder]);
+
+  const pageCount = Math.max(1, Math.ceil(visibleEmployees.length / ROWS_PER_PAGE));
+  const pagedEmployees = visibleEmployees.slice((page - 1) * ROWS_PER_PAGE, page * ROWS_PER_PAGE);
+
   // Clear out selections that scrolled out of the filtered/sorted view — keeping them would let
-  // "Export CSV" silently include rows the user can no longer see, which is worse than just
-  // dropping them from the selection.
+  // "Export CSV" silently include rows the user can no longer see.
   useEffect(() => {
     const visibleIds = new Set(visibleEmployees.map((e) => e.id));
     setSelectedIds((prev) => {
@@ -189,9 +174,14 @@ export default function EmployeeDirectory() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visibleEmployees]);
 
-  const allVisibleSelected = visibleEmployees.length > 0 && visibleEmployees.every((e) => selectedIds.has(e.id));
+  const allPageSelected = pagedEmployees.length > 0 && pagedEmployees.every((e) => selectedIds.has(e.id));
   const toggleAll = () => {
-    setSelectedIds(allVisibleSelected ? new Set() : new Set(visibleEmployees.map((e) => e.id)));
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (allPageSelected) pagedEmployees.forEach((e) => next.delete(e.id));
+      else pagedEmployees.forEach((e) => next.add(e.id));
+      return next;
+    });
   };
   const toggleOne = (id: string) => {
     setSelectedIds((prev) => {
@@ -202,9 +192,17 @@ export default function EmployeeDirectory() {
     });
   };
 
+  const toggleSort = (key: SortKey) => {
+    if (sortKey !== key) {
+      setSortKey(key);
+      setSortOrder('ASC');
+    } else {
+      setSortOrder((o) => (o === 'ASC' ? 'DESC' : 'ASC'));
+    }
+  };
+
   // The first genuinely real bulk action — a client-side CSV export needs no new backend
   // surface and no new write-permission questions, unlike e.g. bulk status change would.
-  // Checkboxes with nothing real behind them would be decoration; this is why they exist here.
   const exportSelectedCsv = () => {
     const selected = visibleEmployees.filter((e) => selectedIds.has(e.id));
     const header = ['Name', 'Employee ID', 'Designation', 'Department', 'Status'].map(toCsvValue).join(',');
@@ -223,49 +221,7 @@ export default function EmployeeDirectory() {
     URL.revokeObjectURL(url);
   };
 
-  // Column widths as a percentage of the table's own width, not left to DynamicTable's default
-  // even-split — an even split is what stretched every column to the same width regardless of
-  // content (Name and Status ending up equally wide), which read as sparse/unfinished rather
-  // than deliberate. Real real-browser measurement (see docs/build/03-ui-patterns.md) is what
-  // caught this, not a guess.
-  const head = {
-    cells: [
-      {
-        key: 'select',
-        content: (
-          <input type="checkbox" checked={allVisibleSelected} onChange={toggleAll} aria-label="Select all employees" style={{ cursor: 'pointer' }} />
-        ),
-        width: 4,
-      },
-      { key: 'name', content: 'Name', width: 24, isSortable: true },
-      { key: 'code', content: 'Employee ID', width: 20, isSortable: true },
-      { key: 'designation', content: 'Designation', width: 17, isSortable: true },
-      { key: 'department', content: 'Department', width: 17, isSortable: true },
-      { key: 'status', content: 'Status', width: 18, isSortable: true },
-    ],
-  };
-
-  const rows = visibleEmployees.map((emp) => ({
-    key: emp.id,
-    cells: [
-      {
-        key: 'select',
-        content: (
-          <input type="checkbox" checked={selectedIds.has(emp.id)} onChange={() => toggleOne(emp.id)} aria-label={`Select ${emp.legal_name}`} style={{ cursor: 'pointer' }} />
-        ),
-      },
-      { key: 'name', content: <NameCell employee={emp} /> },
-      { key: 'code', content: emp.employee_code },
-      { key: 'designation', content: emp.employment_assignments[0]?.designations?.title ?? '—' },
-      { key: 'department', content: emp.employment_assignments[0]?.departments?.name ?? '—' },
-      { key: 'status', content: <StatusCell employee={emp} canEdit={role === 'admin'} /> },
-    ],
-  }));
-
-  // A genuine, if simple, use of Recharts — headcount by status. Real value once there are
-  // enough employees and statuses for the breakdown to say something; wired up now so the
-  // pattern exists for Module 19's real dashboards to build on, not left as an unused
-  // dependency.
+  // A genuine, if simple, use of Recharts — headcount by status.
   const statusCounts = employees.reduce<Record<string, number>>((acc, e) => {
     acc[e.status] = (acc[e.status] ?? 0) + 1;
     return acc;
@@ -273,71 +229,124 @@ export default function EmployeeDirectory() {
   const chartData = Object.entries(statusCounts).map(([status, count]) => ({ status, count }));
 
   return (
-    <div style={{ maxWidth: 1296, margin: '0 auto', padding: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <Heading size="large">Employee Directory</Heading>
+    <div className="mx-auto max-w-[1296px] p-6">
+      <div className="mb-4 flex items-center justify-between">
+        <h1 className="text-2xl font-medium text-foreground">Employee Directory</h1>
         {role === 'admin' && (
           <Link to="/employees/new">
-            <Button appearance="primary">Add employee</Button>
+            <Button variant="primary">Add employee</Button>
           </Link>
         )}
       </div>
 
-      {error && <p style={{ color: 'red' }}>Could not load employees: {error}</p>}
+      {error && <p className="text-sm text-text-danger">Could not load employees: {error}</p>}
 
       {chartData.length > 0 && (
-        <div style={{ height: 120, marginBottom: 24 }}>
+        <div className="mb-6 h-[120px]">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData} layout="vertical">
-              {/* Explicit domain, not Recharts' default auto-padded one — with few status
-                  buckets (often just one, "active", early on) the default rounds the axis max
-                  up to a "nice" number well past the real data max, so even a 100%-active
-                  breakdown renders as a short, inexplicable-looking bar instead of a full one. */}
               <XAxis type="number" allowDecimals={false} domain={[0, 'dataMax']} hide />
               <YAxis type="category" dataKey="status" width={100} />
               <Tooltip />
-              <Bar dataKey="count" fill="#0C66E4" radius={[0, 4, 4, 0]} />
+              <Bar dataKey="count" fill="#0052CC" radius={[0, 4, 4, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
       )}
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, gap: 16 }}>
-        <div style={{ width: 280 }}>
-          <TextField
-            placeholder="Filter this list…"
-            value={filterText}
-            onChange={(e) => setFilterText(e.currentTarget.value)}
-            isCompact
-          />
+      <div className="mb-2 flex items-center justify-between gap-4">
+        <div className="w-[280px]">
+          <Input placeholder="Filter this list…" value={filterText} onChange={(e) => setFilterText(e.currentTarget.value)} />
         </div>
         {selectedIds.size > 0 && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 13, color: token('color.text.subtle', '#44546F') }}>
+          <div className="flex items-center gap-3 text-sm text-text-subtle">
             <span>{selectedIds.size} selected</span>
-            <Button appearance="subtle" spacing="compact" onClick={exportSelectedCsv}>
+            <Button variant="ghost" size="small" onClick={exportSelectedCsv}>
               Export CSV
             </Button>
-            <Button appearance="subtle" spacing="compact" onClick={() => setSelectedIds(new Set())}>
+            <Button variant="ghost" size="small" onClick={() => setSelectedIds(new Set())}>
               Clear
             </Button>
           </div>
         )}
       </div>
 
-      <DynamicTable
-        head={head}
-        rows={rows}
-        isLoading={loading}
-        emptyView={<h4>No employees yet — add your first one to get started.</h4>}
-        rowsPerPage={20}
-        defaultPage={1}
-        sortKey={sortKey ?? undefined}
-        sortOrder={sortOrder}
-        onSort={({ key, sortOrder: order }) => {
-          setSortKey(key as SortKey);
-          setSortOrder(order);
-        }}
-      />
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-8">
+              <input type="checkbox" checked={allPageSelected} onChange={toggleAll} aria-label="Select all employees" className="cursor-pointer" />
+            </TableHead>
+            <SortableHead active={sortKey === 'name'} order={sortKey === 'name' ? sortOrder : null} onClick={() => toggleSort('name')}>
+              Name
+            </SortableHead>
+            <SortableHead active={sortKey === 'code'} order={sortKey === 'code' ? sortOrder : null} onClick={() => toggleSort('code')}>
+              Employee ID
+            </SortableHead>
+            <SortableHead active={sortKey === 'designation'} order={sortKey === 'designation' ? sortOrder : null} onClick={() => toggleSort('designation')}>
+              Designation
+            </SortableHead>
+            <SortableHead active={sortKey === 'department'} order={sortKey === 'department' ? sortOrder : null} onClick={() => toggleSort('department')}>
+              Department
+            </SortableHead>
+            <SortableHead active={sortKey === 'status'} order={sortKey === 'status' ? sortOrder : null} onClick={() => toggleSort('status')}>
+              Status
+            </SortableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {loading ? (
+            <TableRow>
+              <TableCell colSpan={6} className="py-6 text-center text-text-subtlest">
+                Loading…
+              </TableCell>
+            </TableRow>
+          ) : pagedEmployees.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={6} className="py-6 text-center text-text-subtlest">
+                No employees yet — add your first one to get started.
+              </TableCell>
+            </TableRow>
+          ) : (
+            pagedEmployees.map((emp) => (
+              <TableRow key={emp.id}>
+                <TableCell>
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(emp.id)}
+                    onChange={() => toggleOne(emp.id)}
+                    aria-label={`Select ${emp.legal_name}`}
+                    className="cursor-pointer"
+                  />
+                </TableCell>
+                <TableCell>
+                  <NameCell employee={emp} />
+                </TableCell>
+                <TableCell>{emp.employee_code}</TableCell>
+                <TableCell>{emp.employment_assignments[0]?.designations?.title ?? '—'}</TableCell>
+                <TableCell>{emp.employment_assignments[0]?.departments?.name ?? '—'}</TableCell>
+                <TableCell>
+                  <StatusCell employee={emp} canEdit={role === 'admin'} />
+                </TableCell>
+              </TableRow>
+            ))
+          )}
+        </TableBody>
+      </Table>
+
+      {pageCount > 1 && (
+        <div className="mt-3 flex items-center justify-end gap-3 text-sm text-text-subtle">
+          <Button variant="ghost" size="small" disabled={page === 1} onClick={() => setPage((p) => p - 1)}>
+            Previous
+          </Button>
+          <span>
+            Page {page} of {pageCount}
+          </span>
+          <Button variant="ghost" size="small" disabled={page === pageCount} onClick={() => setPage((p) => p + 1)}>
+            Next
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

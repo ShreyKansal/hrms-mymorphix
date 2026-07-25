@@ -1,18 +1,12 @@
 import { useEffect, useState } from 'react';
-import Heading from '@atlaskit/heading';
-import Button from '@atlaskit/button/new';
-import Lozenge from '@atlaskit/lozenge';
-import Form, { Field, FormSection, ErrorMessage, MessageWrapper } from '@atlaskit/form';
-import TextField from '@atlaskit/textfield';
-import { SelectField } from '../../lib/SelectField';
 import { useAuthStore } from '../auth/store';
 import { useTeamStore } from './store';
-import { rowStyle, cellStyle } from '../../lib/detailStyles';
-
-interface InviteFormData {
-  email: string;
-  role: 'admin' | 'employee';
-}
+import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
+import { Label } from '../../components/ui/label';
+import { Select } from '../../components/ui/select';
+import { Badge } from '../../components/ui/badge';
+import { Table, TableBody, TableRow, TableCell } from '../../components/ui/table';
 
 // Module 21 (Roles and Permissions), first slice — see the migration this depends on
 // (20260724050000_roles_and_invitations.sql) for why: this exists first to make a second
@@ -24,6 +18,7 @@ export default function Team() {
   const role = useAuthStore((s) => s.role);
   const { members, pendingInvitations, loading, error, fetchTeam, inviteUser } = useTeamStore();
   const [inviteError, setInviteError] = useState<string | null>(null);
+  const [inviting, setInviting] = useState(false);
 
   useEffect(() => {
     fetchTeam();
@@ -31,94 +26,88 @@ export default function Team() {
   }, []);
 
   return (
-    <div style={{ maxWidth: 864, margin: '0 auto', padding: 24 }}>
-      <div style={{ marginBottom: 24 }}>
-        <Heading size="large">Team</Heading>
+    <div className="mx-auto max-w-[864px] p-6">
+      <h1 className="mb-6 text-2xl font-medium text-foreground">Team</h1>
+
+      {error && <p className="text-sm text-text-danger">Could not load: {error}</p>}
+
+      <h3 className="text-sm font-semibold text-foreground">Members</h3>
+      <div className="mb-6 mt-2">
+        <Table>
+          <TableBody>
+            {members.length === 0 && !loading && (
+              <TableRow>
+                <TableCell>No members yet.</TableCell>
+              </TableRow>
+            )}
+            {members.map((m) => (
+              <TableRow key={m.id}>
+                <TableCell>{m.email ?? '—'}</TableCell>
+                <TableCell>
+                  <Badge variant={m.role === 'admin' ? 'success' : 'default'}>{m.role}</Badge>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       </div>
-
-      {error && <p style={{ color: 'red' }}>Could not load: {error}</p>}
-
-      <Heading size="small">Members</Heading>
-      <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 8, marginBottom: 24 }}>
-        <tbody>
-          {members.length === 0 && !loading && (
-            <tr>
-              <td style={cellStyle}>No members yet.</td>
-            </tr>
-          )}
-          {members.map((m) => (
-            <tr key={m.id} style={rowStyle}>
-              <td style={cellStyle}>{m.email ?? '—'}</td>
-              <td style={cellStyle}>
-                <Lozenge appearance={m.role === 'admin' ? 'success' : 'default'}>{m.role}</Lozenge>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
 
       {pendingInvitations.length > 0 && (
         <>
-          <Heading size="small">Pending invitations</Heading>
-          <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 8, marginBottom: 24 }}>
-            <tbody>
-              {pendingInvitations.map((inv) => (
-                <tr key={inv.id} style={rowStyle}>
-                  <td style={cellStyle}>{inv.email}</td>
-                  <td style={cellStyle}>
-                    <Lozenge>{inv.role}</Lozenge>
-                  </td>
-                  <td style={cellStyle}>invited {new Date(inv.created_at).toLocaleDateString()}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <h3 className="text-sm font-semibold text-foreground">Pending invitations</h3>
+          <div className="mb-6 mt-2">
+            <Table>
+              <TableBody>
+                {pendingInvitations.map((inv) => (
+                  <TableRow key={inv.id}>
+                    <TableCell>{inv.email}</TableCell>
+                    <TableCell>
+                      <Badge>{inv.role}</Badge>
+                    </TableCell>
+                    <TableCell>invited {new Date(inv.created_at).toLocaleDateString()}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </>
       )}
 
       {role === 'admin' && (
         <>
-          <Heading size="small">Invite someone</Heading>
-          <Form<InviteFormData>
-            onSubmit={async (data) => {
+          <h3 className="text-sm font-semibold text-foreground">Invite someone</h3>
+          {inviteError && <p className="mt-2 text-sm text-text-danger">{inviteError}</p>}
+          <form
+            className="mt-2 flex items-end gap-2"
+            onSubmit={async (e) => {
+              e.preventDefault();
               setInviteError(null);
-              const { error } = await inviteUser(data.email, data.role);
+              setInviting(true);
+              const form = e.currentTarget;
+              const fd = new FormData(form);
+              const { error } = await inviteUser(String(fd.get('email') ?? ''), fd.get('role') as 'admin' | 'employee');
+              setInviting(false);
               if (error) setInviteError(error);
+              else form.reset();
             }}
           >
-            {({ formProps, reset }) => (
-              <form
-                {...formProps}
-                style={{ display: 'flex', gap: 8, alignItems: 'flex-end', marginTop: 8 }}
-                onSubmit={(e) => {
-                  formProps.onSubmit(e);
-                  reset();
-                }}
-              >
-                {inviteError && (
-                  <MessageWrapper>
-                    <ErrorMessage>{inviteError}</ErrorMessage>
-                  </MessageWrapper>
-                )}
-                <FormSection>
-                  <Field name="email" label="Email" isRequired defaultValue="">
-                    {({ fieldProps }) => <TextField {...fieldProps} type="email" />}
-                  </Field>
-                </FormSection>
-                <Field<string, HTMLSelectElement> name="role" label="Role" defaultValue="employee">
-                  {({ fieldProps }) => (
-                    <SelectField fieldProps={fieldProps}>
-                      <option value="employee">employee</option>
-                      <option value="admin">admin</option>
-                    </SelectField>
-                  )}
-                </Field>
-                <Button type="submit" appearance="primary">
-                  Invite
-                </Button>
-              </form>
-            )}
-          </Form>
+            <div>
+              <Label htmlFor="invite-email" required>
+                Email
+              </Label>
+              <Input id="invite-email" name="email" type="email" required />
+            </div>
+            <div>
+              <Label htmlFor="invite-role">Role</Label>
+              <Select id="invite-role" name="role" defaultValue="employee" className="w-32">
+                <option value="employee">employee</option>
+                <option value="admin">admin</option>
+              </Select>
+            </div>
+            <Button type="submit" variant="primary" loading={inviting}>
+              Invite
+            </Button>
+          </form>
         </>
       )}
     </div>

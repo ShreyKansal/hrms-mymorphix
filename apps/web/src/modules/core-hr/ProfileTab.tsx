@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
-import Heading from '@atlaskit/heading';
-import Button from '@atlaskit/button/new';
-import Form, { Field, FormSection, ErrorMessage, MessageWrapper } from '@atlaskit/form';
-import TextField from '@atlaskit/textfield';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../auth/store';
-import { labelStyle, valueStyle, rowStyle, cellStyle } from '../../lib/detailStyles';
+import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
+import { Label } from '../../components/ui/label';
+import { Table, TableBody, TableRow, TableCell } from '../../components/ui/table';
 import type { Employee, EmployeeEducation, EmployeePreviousEmployment } from '../../lib/database.types';
+
+const labelClass = 'mt-3 text-xs font-semibold text-text-subtle';
+const valueClass = 'mt-0.5 text-foreground';
 
 interface ProfileFormData {
   legalName: string;
@@ -17,55 +19,73 @@ interface ProfileFormData {
   personalPhone: string;
 }
 
+function field(data: FormData, key: string) {
+  return String(data.get(key) ?? '');
+}
+
 function PersonalContactSection({ employee, onSaved }: { employee: Employee; onSaved: (updated: Employee) => void }) {
   const [editing, setEditing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   if (!editing) {
     return (
-      <div style={{ maxWidth: 480 }}>
-        <Heading size="small">Personal</Heading>
-        <p style={labelStyle}>Legal name</p>
-        <p style={valueStyle}>{employee.legal_name}</p>
-        <p style={labelStyle}>Date of birth</p>
-        <p style={valueStyle}>
-          {employee.date_of_birth ? new Date(employee.date_of_birth).toLocaleDateString() : '—'}
-        </p>
-        <p style={labelStyle}>Gender</p>
-        <p style={valueStyle}>{employee.gender ?? '—'}</p>
-        <p style={labelStyle}>PAN</p>
-        <p style={valueStyle}>{employee.pan_number ?? '—'}</p>
+      <div className="max-w-[480px]">
+        <h3 className="text-sm font-semibold text-foreground">Personal</h3>
+        <p className={labelClass}>Legal name</p>
+        <p className={valueClass}>{employee.legal_name}</p>
+        <p className={labelClass}>Date of birth</p>
+        <p className={valueClass}>{employee.date_of_birth ? new Date(employee.date_of_birth).toLocaleDateString() : '—'}</p>
+        <p className={labelClass}>Gender</p>
+        <p className={valueClass}>{employee.gender ?? '—'}</p>
+        <p className={labelClass}>PAN</p>
+        <p className={valueClass}>{employee.pan_number ?? '—'}</p>
 
-        <Heading size="small">Contact</Heading>
-        <p style={labelStyle}>Personal email</p>
-        <p style={valueStyle}>{employee.personal_email ?? '—'}</p>
-        <p style={labelStyle}>Personal phone</p>
-        <p style={valueStyle}>{employee.personal_phone ?? '—'}</p>
+        <h3 className="mt-4 text-sm font-semibold text-foreground">Contact</h3>
+        <p className={labelClass}>Personal email</p>
+        <p className={valueClass}>{employee.personal_email ?? '—'}</p>
+        <p className={labelClass}>Personal phone</p>
+        <p className={valueClass}>{employee.personal_phone ?? '—'}</p>
 
-        <div style={{ marginTop: 24 }}>
+        <div className="mt-6">
           <Button onClick={() => setEditing(true)}>Edit</Button>
         </div>
       </div>
     );
   }
 
+  const data: ProfileFormData = {
+    legalName: employee.legal_name,
+    dateOfBirth: employee.date_of_birth ?? '',
+    gender: employee.gender ?? '',
+    panNumber: employee.pan_number ?? '',
+    personalEmail: employee.personal_email ?? '',
+    personalPhone: employee.personal_phone ?? '',
+  };
+
   return (
-    <Form<ProfileFormData>
-      onSubmit={async (data) => {
+    <form
+      className="max-w-[480px]"
+      onSubmit={async (e) => {
+        e.preventDefault();
         setError(null);
+        setSaving(true);
+        const form = e.currentTarget;
+          const fd = new FormData(form);
         const { data: updated, error: updateError } = await supabase
           .from('employees')
           .update({
-            legal_name: data.legalName,
-            date_of_birth: data.dateOfBirth || null,
-            gender: data.gender || null,
-            pan_number: data.panNumber || null,
-            personal_email: data.personalEmail || null,
-            personal_phone: data.personalPhone || null,
+            legal_name: field(fd, 'legalName'),
+            date_of_birth: field(fd, 'dateOfBirth') || null,
+            gender: field(fd, 'gender') || null,
+            pan_number: field(fd, 'panNumber') || null,
+            personal_email: field(fd, 'personalEmail') || null,
+            personal_phone: field(fd, 'personalPhone') || null,
           })
           .eq('id', employee.id)
           .select()
           .single();
+        setSaving(false);
         if (updateError) {
           setError(updateError.message);
           return;
@@ -74,55 +94,51 @@ function PersonalContactSection({ employee, onSaved }: { employee: Employee; onS
         setEditing(false);
       }}
     >
-      {({ formProps }) => (
-        <form {...formProps} style={{ maxWidth: 480 }}>
-          {error && (
-            <MessageWrapper>
-              <ErrorMessage>{error}</ErrorMessage>
-            </MessageWrapper>
-          )}
-          <FormSection title="Personal">
-            <Field name="legalName" label="Legal name" isRequired defaultValue={employee.legal_name}>
-              {({ fieldProps }) => <TextField {...fieldProps} />}
-            </Field>
-            <Field name="dateOfBirth" label="Date of birth" defaultValue={employee.date_of_birth ?? ''}>
-              {({ fieldProps }) => <TextField {...fieldProps} type="date" />}
-            </Field>
-            <Field name="gender" label="Gender" defaultValue={employee.gender ?? ''}>
-              {({ fieldProps }) => <TextField {...fieldProps} />}
-            </Field>
-            <Field name="panNumber" label="PAN" defaultValue={employee.pan_number ?? ''}>
-              {({ fieldProps }) => <TextField {...fieldProps} />}
-            </Field>
-          </FormSection>
-          <FormSection title="Contact">
-            <Field name="personalEmail" label="Personal email" defaultValue={employee.personal_email ?? ''}>
-              {({ fieldProps }) => <TextField {...fieldProps} type="email" />}
-            </Field>
-            <Field name="personalPhone" label="Personal phone" defaultValue={employee.personal_phone ?? ''}>
-              {({ fieldProps }) => <TextField {...fieldProps} />}
-            </Field>
-          </FormSection>
-          <div style={{ marginTop: 24, display: 'flex', gap: 8 }}>
-            <Button type="submit" appearance="primary">
-              Save
-            </Button>
-            <Button appearance="subtle" onClick={() => setEditing(false)}>
-              Cancel
-            </Button>
-          </div>
-        </form>
-      )}
-    </Form>
-  );
-}
+      {error && <p className="mb-3 text-sm text-text-danger">{error}</p>}
+      <h3 className="text-sm font-semibold text-foreground">Personal</h3>
+      <div className="mt-2 space-y-3">
+        <div>
+          <Label htmlFor="legalName" required>
+            Legal name
+          </Label>
+          <Input id="legalName" name="legalName" required defaultValue={data.legalName} />
+        </div>
+        <div>
+          <Label htmlFor="dateOfBirth">Date of birth</Label>
+          <Input id="dateOfBirth" name="dateOfBirth" type="date" defaultValue={data.dateOfBirth} />
+        </div>
+        <div>
+          <Label htmlFor="gender">Gender</Label>
+          <Input id="gender" name="gender" defaultValue={data.gender} />
+        </div>
+        <div>
+          <Label htmlFor="panNumber">PAN</Label>
+          <Input id="panNumber" name="panNumber" defaultValue={data.panNumber} />
+        </div>
+      </div>
 
-interface EducationFormData {
-  institution: string;
-  degree: string;
-  fieldOfStudy: string;
-  startYear: string;
-  endYear: string;
+      <h3 className="mt-4 text-sm font-semibold text-foreground">Contact</h3>
+      <div className="mt-2 space-y-3">
+        <div>
+          <Label htmlFor="personalEmail">Personal email</Label>
+          <Input id="personalEmail" name="personalEmail" type="email" defaultValue={data.personalEmail} />
+        </div>
+        <div>
+          <Label htmlFor="personalPhone">Personal phone</Label>
+          <Input id="personalPhone" name="personalPhone" defaultValue={data.personalPhone} />
+        </div>
+      </div>
+
+      <div className="mt-6 flex gap-2">
+        <Button type="submit" variant="primary" loading={saving}>
+          Save
+        </Button>
+        <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
+          Cancel
+        </Button>
+      </div>
+    </form>
+  );
 }
 
 function EducationSection({ employeeId }: { employeeId: string }) {
@@ -131,11 +147,7 @@ function EducationSection({ employeeId }: { employeeId: string }) {
   const [error, setError] = useState<string | null>(null);
 
   const fetchRows = async () => {
-    const { data } = await supabase
-      .from('employee_education')
-      .select('*')
-      .eq('employee_id', employeeId)
-      .order('end_year', { ascending: false });
+    const { data } = await supabase.from('employee_education').select('*').eq('employee_id', employeeId).order('end_year', { ascending: false });
     setRows(data ?? []);
   };
 
@@ -145,92 +157,84 @@ function EducationSection({ employeeId }: { employeeId: string }) {
   }, [employeeId]);
 
   return (
-    <div style={{ marginTop: 24 }}>
-      <Heading size="small">Education</Heading>
-      <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 8, marginBottom: 16 }}>
-        <tbody>
+    <div className="mt-6">
+      <h3 className="text-sm font-semibold text-foreground">Education</h3>
+      <Table>
+        <TableBody>
           {rows.length === 0 && (
-            <tr>
-              <td style={cellStyle}>No education records yet.</td>
-            </tr>
+            <TableRow>
+              <TableCell>No education records yet.</TableCell>
+            </TableRow>
           )}
           {rows.map((r) => (
-            <tr key={r.id} style={rowStyle}>
-              <td style={cellStyle}>{r.degree}</td>
-              <td style={cellStyle}>{r.field_of_study ?? '—'}</td>
-              <td style={cellStyle}>{r.institution}</td>
-              <td style={cellStyle}>
+            <TableRow key={r.id}>
+              <TableCell>{r.degree}</TableCell>
+              <TableCell>{r.field_of_study ?? '—'}</TableCell>
+              <TableCell>{r.institution}</TableCell>
+              <TableCell>
                 {r.start_year ?? '—'}–{r.end_year ?? '—'}
-              </td>
-            </tr>
+              </TableCell>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
-      <Form<EducationFormData>
-        onSubmit={async (data) => {
+        </TableBody>
+      </Table>
+      {error && <p className="mt-2 text-sm text-text-danger">{error}</p>}
+      <form
+        className="mt-3 flex flex-wrap items-end gap-2"
+        onSubmit={async (e) => {
+          e.preventDefault();
           setError(null);
           if (!tenantId) {
             setError('No workspace context');
             return;
           }
+          const form = e.currentTarget;
+          const fd = new FormData(form);
           const { error: insertError } = await supabase.from('employee_education').insert({
             tenant_id: tenantId,
             employee_id: employeeId,
-            institution: data.institution,
-            degree: data.degree,
-            field_of_study: data.fieldOfStudy || null,
-            start_year: data.startYear ? Number(data.startYear) : null,
-            end_year: data.endYear ? Number(data.endYear) : null,
+            institution: field(fd, 'institution'),
+            degree: field(fd, 'degree'),
+            field_of_study: field(fd, 'fieldOfStudy') || null,
+            start_year: field(fd, 'startYear') ? Number(field(fd, 'startYear')) : null,
+            end_year: field(fd, 'endYear') ? Number(field(fd, 'endYear')) : null,
           });
           if (insertError) {
             setError(insertError.message);
             return;
           }
+          form.reset();
           await fetchRows();
         }}
       >
-        {({ formProps, reset }) => (
-          <form
-            {...formProps}
-            style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' }}
-            onSubmit={(e) => {
-              formProps.onSubmit(e);
-              reset();
-            }}
-          >
-            {error && (
-              <MessageWrapper>
-                <ErrorMessage>{error}</ErrorMessage>
-              </MessageWrapper>
-            )}
-            <Field name="degree" label="Degree" isRequired defaultValue="">
-              {({ fieldProps }) => <TextField {...fieldProps} />}
-            </Field>
-            <Field name="fieldOfStudy" label="Field of study" defaultValue="">
-              {({ fieldProps }) => <TextField {...fieldProps} />}
-            </Field>
-            <Field name="institution" label="Institution" isRequired defaultValue="">
-              {({ fieldProps }) => <TextField {...fieldProps} />}
-            </Field>
-            <Field name="startYear" label="Start year" defaultValue="">
-              {({ fieldProps }) => <TextField {...fieldProps} type="number" />}
-            </Field>
-            <Field name="endYear" label="End year" defaultValue="">
-              {({ fieldProps }) => <TextField {...fieldProps} type="number" />}
-            </Field>
-            <Button type="submit">Add</Button>
-          </form>
-        )}
-      </Form>
+        <div>
+          <Label htmlFor="degree" required>
+            Degree
+          </Label>
+          <Input id="degree" name="degree" required className="w-32" />
+        </div>
+        <div>
+          <Label htmlFor="fieldOfStudy">Field of study</Label>
+          <Input id="fieldOfStudy" name="fieldOfStudy" className="w-40" />
+        </div>
+        <div>
+          <Label htmlFor="institution" required>
+            Institution
+          </Label>
+          <Input id="institution" name="institution" required className="w-40" />
+        </div>
+        <div>
+          <Label htmlFor="startYear">Start year</Label>
+          <Input id="startYear" name="startYear" type="number" className="w-24" />
+        </div>
+        <div>
+          <Label htmlFor="endYear">End year</Label>
+          <Input id="endYear" name="endYear" type="number" className="w-24" />
+        </div>
+        <Button type="submit">Add</Button>
+      </form>
     </div>
   );
-}
-
-interface PreviousEmploymentFormData {
-  companyName: string;
-  designation: string;
-  startDate: string;
-  endDate: string;
 }
 
 function PreviousEmploymentSection({ employeeId }: { employeeId: string }) {
@@ -253,79 +257,74 @@ function PreviousEmploymentSection({ employeeId }: { employeeId: string }) {
   }, [employeeId]);
 
   return (
-    <div style={{ marginTop: 24 }}>
-      <Heading size="small">Previous employment</Heading>
-      <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 8, marginBottom: 16 }}>
-        <tbody>
+    <div className="mt-6">
+      <h3 className="text-sm font-semibold text-foreground">Previous employment</h3>
+      <Table>
+        <TableBody>
           {rows.length === 0 && (
-            <tr>
-              <td style={cellStyle}>No previous employment records yet.</td>
-            </tr>
+            <TableRow>
+              <TableCell>No previous employment records yet.</TableCell>
+            </TableRow>
           )}
           {rows.map((r) => (
-            <tr key={r.id} style={rowStyle}>
-              <td style={cellStyle}>{r.company_name}</td>
-              <td style={cellStyle}>{r.designation ?? '—'}</td>
-              <td style={cellStyle}>
-                {r.start_date ? new Date(r.start_date).toLocaleDateString() : '—'} –{' '}
-                {r.end_date ? new Date(r.end_date).toLocaleDateString() : '—'}
-              </td>
-            </tr>
+            <TableRow key={r.id}>
+              <TableCell>{r.company_name}</TableCell>
+              <TableCell>{r.designation ?? '—'}</TableCell>
+              <TableCell>
+                {r.start_date ? new Date(r.start_date).toLocaleDateString() : '—'} – {r.end_date ? new Date(r.end_date).toLocaleDateString() : '—'}
+              </TableCell>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
-      <Form<PreviousEmploymentFormData>
-        onSubmit={async (data) => {
+        </TableBody>
+      </Table>
+      {error && <p className="mt-2 text-sm text-text-danger">{error}</p>}
+      <form
+        className="mt-3 flex flex-wrap items-end gap-2"
+        onSubmit={async (e) => {
+          e.preventDefault();
           setError(null);
           if (!tenantId) {
             setError('No workspace context');
             return;
           }
+          const form = e.currentTarget;
+          const fd = new FormData(form);
           const { error: insertError } = await supabase.from('employee_previous_employment').insert({
             tenant_id: tenantId,
             employee_id: employeeId,
-            company_name: data.companyName,
-            designation: data.designation || null,
-            start_date: data.startDate || null,
-            end_date: data.endDate || null,
+            company_name: field(fd, 'companyName'),
+            designation: field(fd, 'designation') || null,
+            start_date: field(fd, 'startDate') || null,
+            end_date: field(fd, 'endDate') || null,
           });
           if (insertError) {
             setError(insertError.message);
             return;
           }
+          form.reset();
           await fetchRows();
         }}
       >
-        {({ formProps, reset }) => (
-          <form
-            {...formProps}
-            style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' }}
-            onSubmit={(e) => {
-              formProps.onSubmit(e);
-              reset();
-            }}
-          >
-            {error && (
-              <MessageWrapper>
-                <ErrorMessage>{error}</ErrorMessage>
-              </MessageWrapper>
-            )}
-            <Field name="companyName" label="Company" isRequired defaultValue="">
-              {({ fieldProps }) => <TextField {...fieldProps} />}
-            </Field>
-            <Field name="designation" label="Designation" defaultValue="">
-              {({ fieldProps }) => <TextField {...fieldProps} />}
-            </Field>
-            <Field name="startDate" label="Start date" defaultValue="">
-              {({ fieldProps }) => <TextField {...fieldProps} type="date" />}
-            </Field>
-            <Field name="endDate" label="End date" defaultValue="">
-              {({ fieldProps }) => <TextField {...fieldProps} type="date" />}
-            </Field>
-            <Button type="submit">Add</Button>
-          </form>
-        )}
-      </Form>
+        <div>
+          <Label htmlFor="companyName" required>
+            Company
+          </Label>
+          <Input id="companyName" name="companyName" required className="w-36" />
+        </div>
+        <div>
+          <Label htmlFor="designation">Designation</Label>
+          <Input id="designation" name="designation" className="w-36" />
+        </div>
+        <div>
+          <Label htmlFor="startDate">Start date</Label>
+          <Input id="startDate" name="startDate" type="date" />
+        </div>
+        <div>
+          <Label htmlFor="endDate">End date</Label>
+          <Input id="endDate" name="endDate" type="date" />
+        </div>
+        <Button type="submit">Add</Button>
+      </form>
     </div>
   );
 }
@@ -334,7 +333,7 @@ function PreviousEmploymentSection({ employeeId }: { employeeId: string }) {
 // §9 additionally lists education/previous-employment as employee profile field groups.
 // Emergency contacts, dependants, and nominees still have no backing tables — adding empty
 // sections for those would be a half-finished UI, so they stay out until they have real data
-// behind them. Education and previous employment do now (see the 20260724030000 migration).
+// behind them.
 export default function ProfileTab({ employee, onSaved }: { employee: Employee; onSaved: (updated: Employee) => void }) {
   return (
     <div>

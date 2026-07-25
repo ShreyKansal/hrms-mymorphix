@@ -1,21 +1,18 @@
 import { useEffect, useState } from 'react';
-import Heading from '@atlaskit/heading';
-import Button from '@atlaskit/button/new';
-import Tabs, { Tab, TabList, TabPanel } from '@atlaskit/tabs';
-import Form, { Field, ErrorMessage, MessageWrapper } from '@atlaskit/form';
-import TextField from '@atlaskit/textfield';
 import { useAuthStore } from '../auth/store';
 import { useOrgManagementStore } from './store';
-import { rowStyle, cellStyle } from '../../lib/detailStyles';
+import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
+import { Label } from '../../components/ui/label';
+import { Table, TableBody, TableRow, TableCell } from '../../components/ui/table';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/tabs';
 
 // Module 2 PRD's "Departments, Locations, Grades/Bands/Designations CRUD" story, scoped down
 // to what's needed to unblock Module 1's Transfer flow: a flat list + create, no edit/delete,
-// no department hierarchy (parent_id exists in the schema but isn't exposed here yet). Adding
-// those now would be building ahead of any actual need for them.
+// no department hierarchy (parent_id exists in the schema but isn't exposed here yet).
 export default function OrgManagement() {
   const { tenantId, legalEntityId } = useAuthStore();
-  const { departments, designations, grades, loading, error, fetchAll, createDepartment, createDesignation, createGrade } =
-    useOrgManagementStore();
+  const { departments, designations, grades, loading, error, fetchAll, createDepartment, createDesignation, createGrade } = useOrgManagementStore();
 
   useEffect(() => {
     fetchAll();
@@ -23,49 +20,35 @@ export default function OrgManagement() {
   }, []);
 
   return (
-    <div style={{ maxWidth: 864, margin: '0 auto', padding: 24 }}>
-      <div style={{ marginBottom: 24 }}>
-        <Heading size="large">Organisation</Heading>
-      </div>
+    <div className="mx-auto max-w-[864px] p-6">
+      <h1 className="mb-6 text-2xl font-medium text-foreground">Organisation</h1>
 
-      {error && <p style={{ color: 'red' }}>Could not load: {error}</p>}
+      {error && <p className="text-sm text-text-danger">Could not load: {error}</p>}
 
-      <Tabs id="org-management-tabs">
-        <TabList>
-          <Tab>Departments</Tab>
-          <Tab>Designations</Tab>
-          <Tab>Grades</Tab>
-        </TabList>
+      <Tabs defaultValue="departments">
+        <TabsList>
+          <TabsTrigger value="departments">Departments</TabsTrigger>
+          <TabsTrigger value="designations">Designations</TabsTrigger>
+          <TabsTrigger value="grades">Grades</TabsTrigger>
+        </TabsList>
 
-        <TabPanel>
-          <div style={{ paddingTop: 16 }}>
-            <DepartmentSection
-              departments={departments}
-              loading={loading}
-              onCreate={(name) =>
-                tenantId && legalEntityId ? createDepartment(name, tenantId, legalEntityId) : Promise.resolve({ error: 'No workspace context' })
-              }
-            />
-          </div>
-        </TabPanel>
-        <TabPanel>
-          <div style={{ paddingTop: 16 }}>
-            <DesignationSection
-              designations={designations}
-              loading={loading}
-              onCreate={(title) => (tenantId ? createDesignation(title, tenantId) : Promise.resolve({ error: 'No workspace context' }))}
-            />
-          </div>
-        </TabPanel>
-        <TabPanel>
-          <div style={{ paddingTop: 16 }}>
-            <GradeSection
-              grades={grades}
-              loading={loading}
-              onCreate={(code, name) => (tenantId ? createGrade(code, name, tenantId) : Promise.resolve({ error: 'No workspace context' }))}
-            />
-          </div>
-        </TabPanel>
+        <TabsContent value="departments">
+          <DepartmentSection
+            departments={departments}
+            loading={loading}
+            onCreate={(name) => (tenantId && legalEntityId ? createDepartment(name, tenantId, legalEntityId) : Promise.resolve({ error: 'No workspace context' }))}
+          />
+        </TabsContent>
+        <TabsContent value="designations">
+          <DesignationSection
+            designations={designations}
+            loading={loading}
+            onCreate={(title) => (tenantId ? createDesignation(title, tenantId) : Promise.resolve({ error: 'No workspace context' }))}
+          />
+        </TabsContent>
+        <TabsContent value="grades">
+          <GradeSection grades={grades} loading={loading} onCreate={(code, name) => (tenantId ? createGrade(code, name, tenantId) : Promise.resolve({ error: 'No workspace context' }))} />
+        </TabsContent>
       </Tabs>
     </div>
   );
@@ -83,48 +66,41 @@ function DepartmentSection({
   const [error, setError] = useState<string | null>(null);
   return (
     <div>
-      <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 16 }}>
-        <tbody>
+      <Table>
+        <TableBody>
           {departments.length === 0 && !loading && (
-            <tr>
-              <td style={cellStyle}>No departments yet.</td>
-            </tr>
+            <TableRow>
+              <TableCell>No departments yet.</TableCell>
+            </TableRow>
           )}
           {departments.map((d) => (
-            <tr key={d.id} style={rowStyle}>
-              <td style={cellStyle}>{d.name}</td>
-            </tr>
+            <TableRow key={d.id}>
+              <TableCell>{d.name}</TableCell>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
-      <Form<{ name: string }>
-        onSubmit={async (data) => {
+        </TableBody>
+      </Table>
+      {error && <p className="mt-2 text-sm text-text-danger">{error}</p>}
+      <form
+        className="mt-3 flex items-end gap-2"
+        onSubmit={async (e) => {
+          e.preventDefault();
           setError(null);
-          const { error } = await onCreate(data.name);
+          const form = e.currentTarget;
+          const fd = new FormData(form);
+          const { error } = await onCreate(String(fd.get('name') ?? ''));
           if (error) setError(error);
+          else form.reset();
         }}
       >
-        {({ formProps, reset }) => (
-          <form
-            {...formProps}
-            style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}
-            onSubmit={(e) => {
-              formProps.onSubmit(e);
-              reset();
-            }}
-          >
-            {error && (
-              <MessageWrapper>
-                <ErrorMessage>{error}</ErrorMessage>
-              </MessageWrapper>
-            )}
-            <Field name="name" label="New department" isRequired defaultValue="">
-              {({ fieldProps }) => <TextField {...fieldProps} />}
-            </Field>
-            <Button type="submit">Add</Button>
-          </form>
-        )}
-      </Form>
+        <div>
+          <Label htmlFor="dept-name" required>
+            New department
+          </Label>
+          <Input id="dept-name" name="name" required />
+        </div>
+        <Button type="submit">Add</Button>
+      </form>
     </div>
   );
 }
@@ -141,48 +117,41 @@ function DesignationSection({
   const [error, setError] = useState<string | null>(null);
   return (
     <div>
-      <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 16 }}>
-        <tbody>
+      <Table>
+        <TableBody>
           {designations.length === 0 && !loading && (
-            <tr>
-              <td style={cellStyle}>No designations yet.</td>
-            </tr>
+            <TableRow>
+              <TableCell>No designations yet.</TableCell>
+            </TableRow>
           )}
           {designations.map((d) => (
-            <tr key={d.id} style={rowStyle}>
-              <td style={cellStyle}>{d.title}</td>
-            </tr>
+            <TableRow key={d.id}>
+              <TableCell>{d.title}</TableCell>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
-      <Form<{ title: string }>
-        onSubmit={async (data) => {
+        </TableBody>
+      </Table>
+      {error && <p className="mt-2 text-sm text-text-danger">{error}</p>}
+      <form
+        className="mt-3 flex items-end gap-2"
+        onSubmit={async (e) => {
+          e.preventDefault();
           setError(null);
-          const { error } = await onCreate(data.title);
+          const form = e.currentTarget;
+          const fd = new FormData(form);
+          const { error } = await onCreate(String(fd.get('title') ?? ''));
           if (error) setError(error);
+          else form.reset();
         }}
       >
-        {({ formProps, reset }) => (
-          <form
-            {...formProps}
-            style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}
-            onSubmit={(e) => {
-              formProps.onSubmit(e);
-              reset();
-            }}
-          >
-            {error && (
-              <MessageWrapper>
-                <ErrorMessage>{error}</ErrorMessage>
-              </MessageWrapper>
-            )}
-            <Field name="title" label="New designation" isRequired defaultValue="">
-              {({ fieldProps }) => <TextField {...fieldProps} />}
-            </Field>
-            <Button type="submit">Add</Button>
-          </form>
-        )}
-      </Form>
+        <div>
+          <Label htmlFor="desig-title" required>
+            New designation
+          </Label>
+          <Input id="desig-title" name="title" required />
+        </div>
+        <Button type="submit">Add</Button>
+      </form>
     </div>
   );
 }
@@ -199,52 +168,48 @@ function GradeSection({
   const [error, setError] = useState<string | null>(null);
   return (
     <div>
-      <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 16 }}>
-        <tbody>
+      <Table>
+        <TableBody>
           {grades.length === 0 && !loading && (
-            <tr>
-              <td style={cellStyle}>No grades yet.</td>
-            </tr>
+            <TableRow>
+              <TableCell>No grades yet.</TableCell>
+            </TableRow>
           )}
           {grades.map((g) => (
-            <tr key={g.id} style={rowStyle}>
-              <td style={cellStyle}>{g.code}</td>
-              <td style={cellStyle}>{g.name}</td>
-            </tr>
+            <TableRow key={g.id}>
+              <TableCell>{g.code}</TableCell>
+              <TableCell>{g.name}</TableCell>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
-      <Form<{ code: string; name: string }>
-        onSubmit={async (data) => {
+        </TableBody>
+      </Table>
+      {error && <p className="mt-2 text-sm text-text-danger">{error}</p>}
+      <form
+        className="mt-3 flex items-end gap-2"
+        onSubmit={async (e) => {
+          e.preventDefault();
           setError(null);
-          const { error } = await onCreate(data.code, data.name);
+          const form = e.currentTarget;
+          const fd = new FormData(form);
+          const { error } = await onCreate(String(fd.get('code') ?? ''), String(fd.get('name') ?? ''));
           if (error) setError(error);
+          else form.reset();
         }}
       >
-        {({ formProps, reset }) => (
-          <form
-            {...formProps}
-            style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}
-            onSubmit={(e) => {
-              formProps.onSubmit(e);
-              reset();
-            }}
-          >
-            {error && (
-              <MessageWrapper>
-                <ErrorMessage>{error}</ErrorMessage>
-              </MessageWrapper>
-            )}
-            <Field name="code" label="Code" isRequired defaultValue="">
-              {({ fieldProps }) => <TextField {...fieldProps} />}
-            </Field>
-            <Field name="name" label="New grade" isRequired defaultValue="">
-              {({ fieldProps }) => <TextField {...fieldProps} />}
-            </Field>
-            <Button type="submit">Add</Button>
-          </form>
-        )}
-      </Form>
+        <div>
+          <Label htmlFor="grade-code" required>
+            Code
+          </Label>
+          <Input id="grade-code" name="code" required className="w-24" />
+        </div>
+        <div>
+          <Label htmlFor="grade-name" required>
+            New grade
+          </Label>
+          <Input id="grade-name" name="name" required />
+        </div>
+        <Button type="submit">Add</Button>
+      </form>
     </div>
   );
 }

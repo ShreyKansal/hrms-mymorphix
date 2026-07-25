@@ -1,29 +1,24 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Heading from '@atlaskit/heading';
-import Button from '@atlaskit/button/new';
-import Form, { Field, FormSection, ErrorMessage, MessageWrapper } from '@atlaskit/form';
-import TextField from '@atlaskit/textfield';
-import { SelectField } from '../../lib/SelectField';
-import { labelStyle, valueStyle, rowStyle, cellStyle } from '../../lib/detailStyles';
 import { Stepper } from '../../lib/Stepper';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../auth/store';
 import { useOrgManagementStore } from '../org-management/store';
 import { useEmployeesStore, type EmployeeWithCurrentAssignment } from './store';
 import type { Department, Designation, Grade } from '../../lib/database.types';
+import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
+import { Label } from '../../components/ui/label';
+import { Select } from '../../components/ui/select';
+import { Table, TableBody, TableRow, TableCell } from '../../components/ui/table';
 
 // Rebuilds Create Employee from a 7-field Modal into a full page + stepper — the "known
 // violation" flagged in docs/build/03-ui-patterns.md §2. Researched thresholds it now actually
 // meets: NN/g's wizard criteria (>6-7 fields, fields split into distinct categories, infrequent
 // task) and Smashing Magazine's "never a Modal for a complex, lengthy multi-step task" rule.
-// Field groups match the PRD's own list (docs/hrms-prd/modules/01-core-hr-employee-information.md
-// §9) for the groups that already have real backing tables — emergency contacts/dependants/
-// nominees/assets/compensation/bank/tax still don't (see ProfileTab.tsx's own note on this),
-// so they stay out here too rather than adding empty steps for data with nowhere to go.
 // Documents deliberately isn't a step: uploading needs a real employee_id (the storage path is
 // tenant/employee-scoped), and DocumentsTab.tsx already does this well on the page this wizard
-// lands on — duplicating that logic here to run before the employee exists isn't worth it.
+// lands on.
 
 interface WizardEducationRow {
   tempId: string;
@@ -84,90 +79,79 @@ const STEPS = [
   { label: 'Review & create' },
 ];
 
-const stepDescriptionStyle = { color: '#44546F', fontSize: 14, marginTop: 4, marginBottom: 24 };
-const actionsRowStyle = { marginTop: 24, display: 'flex', gap: 8 };
+function val(fd: FormData, k: string) {
+  return String(fd.get(k) ?? '');
+}
+
 // A single-column form where every field stretches to the full 864px page width reads as
 // unfinished, not spacious — real SaaS forms (Attio, Linear) cap field width and pair short
-// fields side by side instead. 640px / 2 columns keeps each field a sane ~300px, still well
-// short of the page's own max-width, with `full` reserved for fields worth their own row
-// (just the name — everything else here is short enough to pair).
-const formGridStyle = { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', columnGap: 24, maxWidth: 640 };
-const fullWidthFieldStyle = { gridColumn: '1 / -1' };
+// fields side by side. 2 columns capped at 640px keeps each field a sane ~300px.
+const formGridClass = 'grid max-w-[640px] grid-cols-2 gap-x-6 gap-y-3';
 
-interface PersonalContactFormData {
-  legalName: string;
-  dateOfBirth: string;
-  gender: string;
-  panNumber: string;
-  personalEmail: string;
-  personalPhone: string;
-}
-
-function PersonalContactStep({
-  data,
-  onNext,
-  onCancel,
-}: {
-  data: WizardData;
-  onNext: (partial: Partial<WizardData>) => void;
-  onCancel: () => void;
-}) {
+function PersonalContactStep({ data, onNext, onCancel }: { data: WizardData; onNext: (partial: Partial<WizardData>) => void; onCancel: () => void }) {
   return (
     <div>
-      <p style={stepDescriptionStyle}>Who this person is, and how to reach them outside work.</p>
-      <Form<PersonalContactFormData> onSubmit={(d) => onNext(d)}>
-        {({ formProps }) => (
-          <form {...formProps}>
-            <FormSection title="Personal">
-              <div style={formGridStyle}>
-                <div style={fullWidthFieldStyle}>
-                  <Field name="legalName" label="Full legal name" isRequired defaultValue={data.legalName}>
-                    {({ fieldProps }) => <TextField {...fieldProps} autoFocus />}
-                  </Field>
-                </div>
-                <Field name="dateOfBirth" label="Date of birth" defaultValue={data.dateOfBirth}>
-                  {({ fieldProps }) => <TextField {...fieldProps} type="date" />}
-                </Field>
-                <Field name="gender" label="Gender" defaultValue={data.gender}>
-                  {({ fieldProps }) => <TextField {...fieldProps} />}
-                </Field>
-                <Field name="panNumber" label="PAN" defaultValue={data.panNumber}>
-                  {({ fieldProps }) => <TextField {...fieldProps} />}
-                </Field>
-              </div>
-            </FormSection>
-            <FormSection title="Contact">
-              <div style={formGridStyle}>
-                <Field name="personalEmail" label="Personal email" defaultValue={data.personalEmail}>
-                  {({ fieldProps }) => <TextField {...fieldProps} type="email" />}
-                </Field>
-                <Field name="personalPhone" label="Personal phone" defaultValue={data.personalPhone}>
-                  {({ fieldProps }) => <TextField {...fieldProps} />}
-                </Field>
-              </div>
-            </FormSection>
-            <div style={actionsRowStyle}>
-              <Button type="submit" appearance="primary">
-                Next: Work information
-              </Button>
-              <Button appearance="subtle" onClick={onCancel}>
-                Cancel
-              </Button>
-            </div>
-          </form>
-        )}
-      </Form>
+      <p className="mb-6 mt-1 text-sm text-text-subtle">Who this person is, and how to reach them outside work.</p>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          const form = e.currentTarget;
+          const fd = new FormData(form);
+          onNext({
+            legalName: val(fd, 'legalName'),
+            dateOfBirth: val(fd, 'dateOfBirth'),
+            gender: val(fd, 'gender'),
+            panNumber: val(fd, 'panNumber'),
+            personalEmail: val(fd, 'personalEmail'),
+            personalPhone: val(fd, 'personalPhone'),
+          });
+        }}
+      >
+        <h3 className="text-sm font-semibold text-foreground">Personal</h3>
+        <div className={`${formGridClass} mt-2`}>
+          <div className="col-span-2">
+            <Label htmlFor="legalName" required>
+              Full legal name
+            </Label>
+            <Input id="legalName" name="legalName" required autoFocus defaultValue={data.legalName} />
+          </div>
+          <div>
+            <Label htmlFor="dateOfBirth">Date of birth</Label>
+            <Input id="dateOfBirth" name="dateOfBirth" type="date" defaultValue={data.dateOfBirth} />
+          </div>
+          <div>
+            <Label htmlFor="gender">Gender</Label>
+            <Input id="gender" name="gender" defaultValue={data.gender} />
+          </div>
+          <div>
+            <Label htmlFor="panNumber">PAN</Label>
+            <Input id="panNumber" name="panNumber" defaultValue={data.panNumber} />
+          </div>
+        </div>
+
+        <h3 className="mt-6 text-sm font-semibold text-foreground">Contact</h3>
+        <div className={`${formGridClass} mt-2`}>
+          <div>
+            <Label htmlFor="personalEmail">Personal email</Label>
+            <Input id="personalEmail" name="personalEmail" type="email" defaultValue={data.personalEmail} />
+          </div>
+          <div>
+            <Label htmlFor="personalPhone">Personal phone</Label>
+            <Input id="personalPhone" name="personalPhone" defaultValue={data.personalPhone} />
+          </div>
+        </div>
+
+        <div className="mt-6 flex gap-2">
+          <Button type="submit" variant="primary">
+            Next: Work information
+          </Button>
+          <Button type="button" variant="ghost" onClick={onCancel}>
+            Cancel
+          </Button>
+        </div>
+      </form>
     </div>
   );
-}
-
-interface WorkInformationFormData {
-  joiningDate: string;
-  employmentType: string;
-  departmentId: string;
-  designationId: string;
-  gradeId: string;
-  managerId: string;
 }
 
 function WorkInformationStep({
@@ -189,89 +173,91 @@ function WorkInformationStep({
 }) {
   return (
     <div>
-      <p style={stepDescriptionStyle}>Where this person sits in the org, and when they start.</p>
-      <Form<WorkInformationFormData> onSubmit={(d) => onNext(d)}>
-        {({ formProps }) => (
-          <form {...formProps}>
-            <FormSection>
-              <div style={formGridStyle}>
-              <Field name="joiningDate" label="Joining date" isRequired defaultValue={data.joiningDate}>
-                {({ fieldProps }) => <TextField {...fieldProps} type="date" autoFocus />}
-              </Field>
-              <Field name="employmentType" label="Employment type" isRequired defaultValue={data.employmentType}>
-                {({ fieldProps }) => <TextField {...fieldProps} />}
-              </Field>
-              <Field<string, HTMLSelectElement> name="departmentId" label="Department" defaultValue={data.departmentId}>
-                {({ fieldProps }) => (
-                  <SelectField fieldProps={fieldProps}>
-                    <option value="">—</option>
-                    {departments.map((d) => (
-                      <option key={d.id} value={d.id}>
-                        {d.name}
-                      </option>
-                    ))}
-                  </SelectField>
-                )}
-              </Field>
-              <Field<string, HTMLSelectElement> name="designationId" label="Designation" defaultValue={data.designationId}>
-                {({ fieldProps }) => (
-                  <SelectField fieldProps={fieldProps}>
-                    <option value="">—</option>
-                    {designations.map((d) => (
-                      <option key={d.id} value={d.id}>
-                        {d.title}
-                      </option>
-                    ))}
-                  </SelectField>
-                )}
-              </Field>
-              <Field<string, HTMLSelectElement> name="gradeId" label="Grade" defaultValue={data.gradeId}>
-                {({ fieldProps }) => (
-                  <SelectField fieldProps={fieldProps}>
-                    <option value="">—</option>
-                    {grades.map((g) => (
-                      <option key={g.id} value={g.id}>
-                        {g.code} — {g.name}
-                      </option>
-                    ))}
-                  </SelectField>
-                )}
-              </Field>
-              <Field<string, HTMLSelectElement> name="managerId" label="Reports to" defaultValue={data.managerId}>
-                {({ fieldProps }) => (
-                  <SelectField fieldProps={fieldProps}>
-                    <option value="">—</option>
-                    {employees.map((e) => (
-                      <option key={e.id} value={e.id}>
-                        {e.legal_name}
-                      </option>
-                    ))}
-                  </SelectField>
-                )}
-              </Field>
-              </div>
-            </FormSection>
-            <div style={actionsRowStyle}>
-              <Button appearance="subtle" onClick={onBack}>
-                Previous
-              </Button>
-              <Button type="submit" appearance="primary">
-                Next: Education
-              </Button>
-            </div>
-          </form>
-        )}
-      </Form>
+      <p className="mb-6 mt-1 text-sm text-text-subtle">Where this person sits in the org, and when they start.</p>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          const form = e.currentTarget;
+          const fd = new FormData(form);
+          onNext({
+            joiningDate: val(fd, 'joiningDate'),
+            employmentType: val(fd, 'employmentType'),
+            departmentId: val(fd, 'departmentId'),
+            designationId: val(fd, 'designationId'),
+            gradeId: val(fd, 'gradeId'),
+            managerId: val(fd, 'managerId'),
+          });
+        }}
+      >
+        <div className={formGridClass}>
+          <div>
+            <Label htmlFor="joiningDate" required>
+              Joining date
+            </Label>
+            <Input id="joiningDate" name="joiningDate" type="date" required autoFocus defaultValue={data.joiningDate} />
+          </div>
+          <div>
+            <Label htmlFor="employmentType" required>
+              Employment type
+            </Label>
+            <Input id="employmentType" name="employmentType" required defaultValue={data.employmentType} />
+          </div>
+          <div>
+            <Label htmlFor="departmentId">Department</Label>
+            <Select id="departmentId" name="departmentId" defaultValue={data.departmentId}>
+              <option value="">—</option>
+              {departments.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor="designationId">Designation</Label>
+            <Select id="designationId" name="designationId" defaultValue={data.designationId}>
+              <option value="">—</option>
+              {designations.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.title}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor="gradeId">Grade</Label>
+            <Select id="gradeId" name="gradeId" defaultValue={data.gradeId}>
+              <option value="">—</option>
+              {grades.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.code} — {g.name}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor="managerId">Reports to</Label>
+            <Select id="managerId" name="managerId" defaultValue={data.managerId}>
+              <option value="">—</option>
+              {employees.map((e) => (
+                <option key={e.id} value={e.id}>
+                  {e.legal_name}
+                </option>
+              ))}
+            </Select>
+          </div>
+        </div>
+        <div className="mt-6 flex gap-2">
+          <Button type="button" variant="ghost" onClick={onBack}>
+            Previous
+          </Button>
+          <Button type="submit" variant="primary">
+            Next: Education
+          </Button>
+        </div>
+      </form>
     </div>
   );
-}
-
-interface EducationRowFormData {
-  institution: string;
-  degree: string;
-  fieldOfStudy: string;
-  startYear: string;
-  endYear: string;
 }
 
 function EducationStep({
@@ -287,81 +273,87 @@ function EducationStep({
 
   return (
     <div>
-      <p style={stepDescriptionStyle}>Optional — add any degrees on record. Skip if there's nothing to add yet.</p>
-      <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 16 }}>
-        <tbody>
+      <p className="mb-4 mt-1 text-sm text-text-subtle">Optional — add any degrees on record. Skip if there's nothing to add yet.</p>
+      <Table>
+        <TableBody>
           {rows.length === 0 && (
-            <tr>
-              <td style={cellStyle}>No education records added yet.</td>
-            </tr>
+            <TableRow>
+              <TableCell>No education records added yet.</TableCell>
+            </TableRow>
           )}
           {rows.map((r) => (
-            <tr key={r.tempId} style={rowStyle}>
-              <td style={cellStyle}>{r.degree}</td>
-              <td style={cellStyle}>{r.fieldOfStudy || '—'}</td>
-              <td style={cellStyle}>{r.institution}</td>
-              <td style={cellStyle}>
+            <TableRow key={r.tempId}>
+              <TableCell>{r.degree}</TableCell>
+              <TableCell>{r.fieldOfStudy || '—'}</TableCell>
+              <TableCell>{r.institution}</TableCell>
+              <TableCell>
                 {r.startYear || '—'}–{r.endYear || '—'}
-              </td>
-              <td style={cellStyle}>
-                <Button appearance="subtle" spacing="none" onClick={() => setRows((prev) => prev.filter((x) => x.tempId !== r.tempId))}>
+              </TableCell>
+              <TableCell>
+                <Button variant="link" size="small" onClick={() => setRows((prev) => prev.filter((x) => x.tempId !== r.tempId))}>
                   Remove
                 </Button>
-              </td>
-            </tr>
+              </TableCell>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
-      <Form<EducationRowFormData>
-        onSubmit={(d) => {
-          setRows((prev) => [...prev, { ...d, tempId: crypto.randomUUID() }]);
+        </TableBody>
+      </Table>
+      <form
+        className="mt-3 flex flex-wrap items-end gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          const form = e.currentTarget;
+          const fd = new FormData(form);
+          setRows((prev) => [
+            ...prev,
+            {
+              tempId: crypto.randomUUID(),
+              degree: val(fd, 'degree'),
+              fieldOfStudy: val(fd, 'fieldOfStudy'),
+              institution: val(fd, 'institution'),
+              startYear: val(fd, 'startYear'),
+              endYear: val(fd, 'endYear'),
+            },
+          ]);
+          form.reset();
         }}
       >
-        {({ formProps, reset }) => (
-          <form
-            {...formProps}
-            style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' }}
-            onSubmit={(e) => {
-              formProps.onSubmit(e);
-              reset();
-            }}
-          >
-            <Field name="degree" label="Degree" isRequired defaultValue="">
-              {({ fieldProps }) => <TextField {...fieldProps} />}
-            </Field>
-            <Field name="fieldOfStudy" label="Field of study" defaultValue="">
-              {({ fieldProps }) => <TextField {...fieldProps} />}
-            </Field>
-            <Field name="institution" label="Institution" isRequired defaultValue="">
-              {({ fieldProps }) => <TextField {...fieldProps} />}
-            </Field>
-            <Field name="startYear" label="Start year" defaultValue="">
-              {({ fieldProps }) => <TextField {...fieldProps} type="number" />}
-            </Field>
-            <Field name="endYear" label="End year" defaultValue="">
-              {({ fieldProps }) => <TextField {...fieldProps} type="number" />}
-            </Field>
-            <Button type="submit">Add</Button>
-          </form>
-        )}
-      </Form>
-      <div style={actionsRowStyle}>
-        <Button appearance="subtle" onClick={() => onBack({ education: rows })}>
+        <div>
+          <Label htmlFor="degree" required>
+            Degree
+          </Label>
+          <Input id="degree" name="degree" required className="w-32" />
+        </div>
+        <div>
+          <Label htmlFor="fieldOfStudy">Field of study</Label>
+          <Input id="fieldOfStudy" name="fieldOfStudy" className="w-40" />
+        </div>
+        <div>
+          <Label htmlFor="institution" required>
+            Institution
+          </Label>
+          <Input id="institution" name="institution" required className="w-40" />
+        </div>
+        <div>
+          <Label htmlFor="startYear">Start year</Label>
+          <Input id="startYear" name="startYear" type="number" className="w-24" />
+        </div>
+        <div>
+          <Label htmlFor="endYear">End year</Label>
+          <Input id="endYear" name="endYear" type="number" className="w-24" />
+        </div>
+        <Button type="submit">Add</Button>
+      </form>
+      <div className="mt-6 flex gap-2">
+        <Button type="button" variant="ghost" onClick={() => onBack({ education: rows })}>
           Previous
         </Button>
-        <Button appearance="primary" onClick={() => onNext({ education: rows })}>
+        <Button type="button" variant="primary" onClick={() => onNext({ education: rows })}>
           Next: Previous employment
         </Button>
       </div>
     </div>
   );
-}
-
-interface PreviousEmploymentRowFormData {
-  companyName: string;
-  designation: string;
-  startDate: string;
-  endDate: string;
 }
 
 function PreviousEmploymentStep({
@@ -377,65 +369,74 @@ function PreviousEmploymentStep({
 
   return (
     <div>
-      <p style={stepDescriptionStyle}>Optional — add prior employers. Skip if this is a fresher hire.</p>
-      <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 16 }}>
-        <tbody>
+      <p className="mb-4 mt-1 text-sm text-text-subtle">Optional — add prior employers. Skip if this is a fresher hire.</p>
+      <Table>
+        <TableBody>
           {rows.length === 0 && (
-            <tr>
-              <td style={cellStyle}>No previous employment added yet.</td>
-            </tr>
+            <TableRow>
+              <TableCell>No previous employment added yet.</TableCell>
+            </TableRow>
           )}
           {rows.map((r) => (
-            <tr key={r.tempId} style={rowStyle}>
-              <td style={cellStyle}>{r.companyName}</td>
-              <td style={cellStyle}>{r.designation || '—'}</td>
-              <td style={cellStyle}>
+            <TableRow key={r.tempId}>
+              <TableCell>{r.companyName}</TableCell>
+              <TableCell>{r.designation || '—'}</TableCell>
+              <TableCell>
                 {r.startDate || '—'} – {r.endDate || '—'}
-              </td>
-              <td style={cellStyle}>
-                <Button appearance="subtle" spacing="none" onClick={() => setRows((prev) => prev.filter((x) => x.tempId !== r.tempId))}>
+              </TableCell>
+              <TableCell>
+                <Button variant="link" size="small" onClick={() => setRows((prev) => prev.filter((x) => x.tempId !== r.tempId))}>
                   Remove
                 </Button>
-              </td>
-            </tr>
+              </TableCell>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
-      <Form<PreviousEmploymentRowFormData>
-        onSubmit={(d) => {
-          setRows((prev) => [...prev, { ...d, tempId: crypto.randomUUID() }]);
+        </TableBody>
+      </Table>
+      <form
+        className="mt-3 flex flex-wrap items-end gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          const form = e.currentTarget;
+          const fd = new FormData(form);
+          setRows((prev) => [
+            ...prev,
+            {
+              tempId: crypto.randomUUID(),
+              companyName: val(fd, 'companyName'),
+              designation: val(fd, 'designation'),
+              startDate: val(fd, 'startDate'),
+              endDate: val(fd, 'endDate'),
+            },
+          ]);
+          form.reset();
         }}
       >
-        {({ formProps, reset }) => (
-          <form
-            {...formProps}
-            style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' }}
-            onSubmit={(e) => {
-              formProps.onSubmit(e);
-              reset();
-            }}
-          >
-            <Field name="companyName" label="Company" isRequired defaultValue="">
-              {({ fieldProps }) => <TextField {...fieldProps} />}
-            </Field>
-            <Field name="designation" label="Designation" defaultValue="">
-              {({ fieldProps }) => <TextField {...fieldProps} />}
-            </Field>
-            <Field name="startDate" label="Start date" defaultValue="">
-              {({ fieldProps }) => <TextField {...fieldProps} type="date" />}
-            </Field>
-            <Field name="endDate" label="End date" defaultValue="">
-              {({ fieldProps }) => <TextField {...fieldProps} type="date" />}
-            </Field>
-            <Button type="submit">Add</Button>
-          </form>
-        )}
-      </Form>
-      <div style={actionsRowStyle}>
-        <Button appearance="subtle" onClick={() => onBack({ previousEmployment: rows })}>
+        <div>
+          <Label htmlFor="companyName" required>
+            Company
+          </Label>
+          <Input id="companyName" name="companyName" required className="w-36" />
+        </div>
+        <div>
+          <Label htmlFor="designation">Designation</Label>
+          <Input id="designation" name="designation" className="w-36" />
+        </div>
+        <div>
+          <Label htmlFor="startDate">Start date</Label>
+          <Input id="startDate" name="startDate" type="date" />
+        </div>
+        <div>
+          <Label htmlFor="endDate">End date</Label>
+          <Input id="endDate" name="endDate" type="date" />
+        </div>
+        <Button type="submit">Add</Button>
+      </form>
+      <div className="mt-6 flex gap-2">
+        <Button type="button" variant="ghost" onClick={() => onBack({ previousEmployment: rows })}>
           Previous
         </Button>
-        <Button appearance="primary" onClick={() => onNext({ previousEmployment: rows })}>
+        <Button type="button" variant="primary" onClick={() => onNext({ previousEmployment: rows })}>
           Next: Review
         </Button>
       </div>
@@ -468,99 +469,97 @@ function ReviewStep({
   const designationTitle = designations.find((d) => d.id === data.designationId)?.title ?? '—';
   const gradeName = grades.find((g) => g.id === data.gradeId);
   const managerName = employees.find((e) => e.id === data.managerId)?.legal_name ?? '—';
+  const labelClass = 'mt-3 text-xs font-semibold text-text-subtle';
+  const valueClass = 'mt-0.5 text-foreground';
 
   return (
     <div>
-      <p style={stepDescriptionStyle}>Check everything below, then create the employee record.</p>
-      {error && (
-        <MessageWrapper>
-          <ErrorMessage>{error}</ErrorMessage>
-        </MessageWrapper>
-      )}
+      <p className="mb-4 mt-1 text-sm text-text-subtle">Check everything below, then create the employee record.</p>
+      {error && <p className="mb-3 text-sm text-text-danger">{error}</p>}
 
-      <Heading size="small">Personal</Heading>
-      <p style={labelStyle}>Legal name</p>
-      <p style={valueStyle}>{data.legalName || '—'}</p>
-      <p style={labelStyle}>Date of birth</p>
-      <p style={valueStyle}>{data.dateOfBirth || '—'}</p>
-      <p style={labelStyle}>Gender</p>
-      <p style={valueStyle}>{data.gender || '—'}</p>
-      <p style={labelStyle}>PAN</p>
-      <p style={valueStyle}>{data.panNumber || '—'}</p>
+      <h3 className="text-sm font-semibold text-foreground">Personal</h3>
+      <p className={labelClass}>Legal name</p>
+      <p className={valueClass}>{data.legalName || '—'}</p>
+      <p className={labelClass}>Date of birth</p>
+      <p className={valueClass}>{data.dateOfBirth || '—'}</p>
+      <p className={labelClass}>Gender</p>
+      <p className={valueClass}>{data.gender || '—'}</p>
+      <p className={labelClass}>PAN</p>
+      <p className={valueClass}>{data.panNumber || '—'}</p>
 
-      <div style={{ marginTop: 24 }}>
-        <Heading size="small">Contact</Heading>
-        <p style={labelStyle}>Personal email</p>
-        <p style={valueStyle}>{data.personalEmail || '—'}</p>
-        <p style={labelStyle}>Personal phone</p>
-        <p style={valueStyle}>{data.personalPhone || '—'}</p>
+      <div className="mt-6">
+        <h3 className="text-sm font-semibold text-foreground">Contact</h3>
+        <p className={labelClass}>Personal email</p>
+        <p className={valueClass}>{data.personalEmail || '—'}</p>
+        <p className={labelClass}>Personal phone</p>
+        <p className={valueClass}>{data.personalPhone || '—'}</p>
       </div>
 
-      <div style={{ marginTop: 24 }}>
-        <Heading size="small">Work information</Heading>
-        <p style={labelStyle}>Joining date</p>
-        <p style={valueStyle}>{data.joiningDate || '—'}</p>
-        <p style={labelStyle}>Employment type</p>
-        <p style={valueStyle}>{data.employmentType || '—'}</p>
-        <p style={labelStyle}>Department</p>
-        <p style={valueStyle}>{departmentName}</p>
-        <p style={labelStyle}>Designation</p>
-        <p style={valueStyle}>{designationTitle}</p>
-        <p style={labelStyle}>Grade</p>
-        <p style={valueStyle}>{gradeName ? `${gradeName.code} — ${gradeName.name}` : '—'}</p>
-        <p style={labelStyle}>Reports to</p>
-        <p style={valueStyle}>{managerName}</p>
+      <div className="mt-6">
+        <h3 className="text-sm font-semibold text-foreground">Work information</h3>
+        <p className={labelClass}>Joining date</p>
+        <p className={valueClass}>{data.joiningDate || '—'}</p>
+        <p className={labelClass}>Employment type</p>
+        <p className={valueClass}>{data.employmentType || '—'}</p>
+        <p className={labelClass}>Department</p>
+        <p className={valueClass}>{departmentName}</p>
+        <p className={labelClass}>Designation</p>
+        <p className={valueClass}>{designationTitle}</p>
+        <p className={labelClass}>Grade</p>
+        <p className={valueClass}>{gradeName ? `${gradeName.code} — ${gradeName.name}` : '—'}</p>
+        <p className={labelClass}>Reports to</p>
+        <p className={valueClass}>{managerName}</p>
       </div>
 
-      <div style={{ marginTop: 24 }}>
-        <Heading size="small">Education</Heading>
-        <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 8 }}>
-          <tbody>
+      <div className="mt-6">
+        <h3 className="text-sm font-semibold text-foreground">Education</h3>
+        <Table>
+          <TableBody>
             {data.education.length === 0 && (
-              <tr>
-                <td style={cellStyle}>None added.</td>
-              </tr>
+              <TableRow>
+                <TableCell>None added.</TableCell>
+              </TableRow>
             )}
             {data.education.map((r) => (
-              <tr key={r.tempId} style={rowStyle}>
-                <td style={cellStyle}>{r.degree}</td>
-                <td style={cellStyle}>{r.institution}</td>
-                <td style={cellStyle}>
+              <TableRow key={r.tempId}>
+                <TableCell>{r.degree}</TableCell>
+                <TableCell>{r.institution}</TableCell>
+                <TableCell>
                   {r.startYear || '—'}–{r.endYear || '—'}
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
 
-      <div style={{ marginTop: 24 }}>
-        <Heading size="small">Previous employment</Heading>
-        <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 8 }}>
-          <tbody>
+      <div className="mt-6">
+        <h3 className="text-sm font-semibold text-foreground">Previous employment</h3>
+        <Table>
+          <TableBody>
             {data.previousEmployment.length === 0 && (
-              <tr>
-                <td style={cellStyle}>None added.</td>
-              </tr>
+              <TableRow>
+                <TableCell>None added.</TableCell>
+              </TableRow>
             )}
             {data.previousEmployment.map((r) => (
-              <tr key={r.tempId} style={rowStyle}>
-                <td style={cellStyle}>{r.companyName}</td>
-                <td style={cellStyle}>{r.designation || '—'}</td>
-                <td style={cellStyle}>
+              <TableRow key={r.tempId}>
+                <TableCell>{r.companyName}</TableCell>
+                <TableCell>{r.designation || '—'}</TableCell>
+                <TableCell>
                   {r.startDate || '—'} – {r.endDate || '—'}
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
 
-      <div style={actionsRowStyle}>
-        <Button appearance="subtle" onClick={onBack} isDisabled={submitting}>
+      <div className="mt-6 flex gap-2">
+        <Button variant="ghost" onClick={onBack} disabled={submitting}>
           Previous
         </Button>
-        <Button appearance="primary" onClick={onSubmit} isLoading={submitting}>
+        <Button variant="primary" onClick={onSubmit} loading={submitting}>
           Create employee
         </Button>
       </div>
@@ -586,8 +585,7 @@ export default function CreateEmployee() {
   }, []);
 
   // UX-only guard (mirrors the hidden "Add employee" nav entry point) — the actual gate is
-  // still create_employee()'s own admin check. This just saves a non-admin from filling out
-  // five steps before finding out the last one rejects.
+  // still create_employee()'s own admin check.
   useEffect(() => {
     if (role && role !== 'admin') navigate('/employees', { replace: true });
   }, [role, navigate]);
@@ -596,12 +594,6 @@ export default function CreateEmployee() {
     setWizardData((prev) => ({ ...prev, ...partial }));
     setStepIndex((i) => i + 1);
   };
-  // Takes an optional partial so a step that holds its own "already confirmed" list state
-  // (Education, Previous employment — rows the user explicitly clicked Add for, not just
-  // typed into a field) can persist it before unmounting. A single-record step's in-progress,
-  // not-yet-submitted field edits are fine to drop on Back — same as leaving any unsubmitted
-  // form — but a list a user already added rows to silently reverting on Back isn't; a real
-  // browser run of this wizard caught exactly that regression.
   const goBack = (partial?: Partial<WizardData>) => {
     if (partial) setWizardData((prev) => ({ ...prev, ...partial }));
     setStepIndex((i) => Math.max(0, i - 1));
@@ -636,10 +628,6 @@ export default function CreateEmployee() {
       return;
     }
 
-    // The employee record — the part that actually matters — is already created at this
-    // point. Education/previous-employment are best-effort follow-ups: if either insert fails,
-    // the user still lands on a real employee record and can add these rows from the Profile
-    // tab (ProfileTab.tsx) exactly like any other time, rather than losing the whole submission.
     if (wizardData.education.length > 0) {
       await supabase.from('employee_education').insert(
         wizardData.education.map((r) => ({
@@ -672,15 +660,13 @@ export default function CreateEmployee() {
   if (role !== 'admin') return null;
 
   return (
-    <div style={{ maxWidth: 864, margin: '0 auto', padding: 24 }}>
-      <Heading size="large">Add employee</Heading>
-      <div style={{ marginTop: 24 }}>
+    <div className="mx-auto max-w-[864px] p-6">
+      <h1 className="text-2xl font-medium text-foreground">Add employee</h1>
+      <div className="mt-6">
         <Stepper steps={STEPS} currentIndex={stepIndex} />
       </div>
 
-      {stepIndex === 0 && (
-        <PersonalContactStep data={wizardData} onNext={goNext} onCancel={() => navigate('/employees')} />
-      )}
+      {stepIndex === 0 && <PersonalContactStep data={wizardData} onNext={goNext} onCancel={() => navigate('/employees')} />}
       {stepIndex === 1 && (
         <WorkInformationStep
           data={wizardData}

@@ -1,13 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import Heading from '@atlaskit/heading';
-import Lozenge from '@atlaskit/lozenge';
-import Tabs, { Tab, TabList, TabPanel } from '@atlaskit/tabs';
-import { token } from '@atlaskit/tokens';
 import { supabase } from '../../lib/supabase';
 import { usePageTitleStore } from '../../lib/pageTitleStore';
 import { avatarColor, initials } from '../../lib/avatar';
 import type { Employee, EmploymentAssignment } from '../../lib/database.types';
+import { Badge } from '../../components/ui/badge';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/tabs';
 import ProfileTab from './ProfileTab';
 import EmploymentTab from './EmploymentTab';
 import DocumentsTab from './DocumentsTab';
@@ -53,58 +51,42 @@ export default function EmployeeDetail() {
     return () => usePageTitleStore.getState().setTitle(null);
   }, [employee]);
 
-  if (loading) return <p style={{ padding: 24 }}>Loading…</p>;
-  if (!employee) return <p style={{ padding: 24 }}>Not found.</p>;
+  if (loading) return <p className="p-6 text-text-subtle">Loading…</p>;
+  if (!employee) return <p className="p-6 text-text-subtle">Not found.</p>;
 
   return (
-    <div style={{ maxWidth: 864, margin: '0 auto', padding: 24 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
+    <div className="mx-auto max-w-[864px] p-6">
+      <div className="mb-6 flex items-center gap-4">
         <div
-          style={{
-            width: 56,
-            height: 56,
-            borderRadius: '50%',
-            flexShrink: 0,
-            backgroundColor: avatarColor(employee.legal_name),
-            color: token('color.text.inverse', '#FFFFFF'),
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: 20,
-            fontWeight: 600,
-          }}
+          className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-xl font-semibold text-text-inverse"
+          style={{ backgroundColor: avatarColor(employee.legal_name) }}
         >
           {initials(employee.legal_name)}
         </div>
         <div>
-          <Heading size="large">{employee.legal_name}</Heading>
-          <p style={{ margin: '2px 0 0', color: token('color.text.subtle', '#44546F') }}>
-            {employee.employee_code} · <Lozenge appearance={employee.status === 'active' ? 'success' : 'default'}>{employee.status}</Lozenge>
+          <h1 className="text-2xl font-medium text-foreground">{employee.legal_name}</h1>
+          <p className="mt-0.5 flex items-center gap-2 text-sm text-text-subtle">
+            {employee.employee_code}
+            <Badge variant={employee.status === 'active' ? 'success' : 'default'}>{employee.status}</Badge>
           </p>
         </div>
       </div>
 
-      <Tabs id="employee-detail-tabs">
-        <TabList>
-          <Tab>Profile</Tab>
-          <Tab>Employment</Tab>
-          <Tab>Documents</Tab>
-        </TabList>
-        <TabPanel>
-          <div style={{ paddingTop: 16 }}>
-            <ProfileTab employee={employee} onSaved={setEmployee} />
-          </div>
-        </TabPanel>
-        <TabPanel>
-          <div style={{ paddingTop: 16 }}>
-            <EmploymentTab employeeId={employee.id} assignments={assignments} onTransferred={() => fetchAssignments(employee.id)} />
-          </div>
-        </TabPanel>
-        <TabPanel>
-          <div style={{ paddingTop: 16 }}>
-            <DocumentsTab employeeId={employee.id} />
-          </div>
-        </TabPanel>
+      <Tabs defaultValue="profile">
+        <TabsList>
+          <TabsTrigger value="profile">Profile</TabsTrigger>
+          <TabsTrigger value="employment">Employment</TabsTrigger>
+          <TabsTrigger value="documents">Documents</TabsTrigger>
+        </TabsList>
+        <TabsContent value="profile">
+          <ProfileTab employee={employee} onSaved={setEmployee} />
+        </TabsContent>
+        <TabsContent value="employment">
+          <EmploymentTab employeeId={employee.id} assignments={assignments} onTransferred={() => fetchAssignments(employee.id)} />
+        </TabsContent>
+        <TabsContent value="documents">
+          <DocumentsTab employeeId={employee.id} />
+        </TabsContent>
       </Tabs>
     </div>
   );
